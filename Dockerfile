@@ -9,6 +9,6 @@ RUN mvn clean package -DskipTests
 FROM amazoncorretto:21
 WORKDIR /app
 COPY --from=build /app/target/store-0.0.1-SNAPSHOT.jar app.jar
-ENV JAVA_TOOL_OPTIONS="-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2 -Djsse.enableSNIExtension=true"
+ENV JAVA_TOOL_OPTIONS="-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2 -Djsse.enableSNIExtension=true -Djava.net.preferIPv4Stack=true -Dsun.net.inetaddr.ttl=60"
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
