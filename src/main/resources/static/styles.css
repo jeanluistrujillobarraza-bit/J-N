@@ -1713,37 +1713,57 @@ nav.nav-links a.active-nav {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-height: 300px;
+    gap: 12px;
+    max-height: 380px;
     overflow-y: auto;
+    padding-right: 4px;
 }
 
 .category-list-item {
     background-color: #fff;
-    padding: 10px 15px;
+    padding: 12px 18px;
     border-radius: var(--border-radius-sm);
     border: 1px solid var(--gray-light);
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.category-list-item span {
-    font-weight: 500;
-}
-
-.category-list-item button {
-    background: none;
-    border: none;
-    color: var(--danger);
-    cursor: pointer;
-    font-size: 13px;
-    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
     transition: var(--transition-smooth);
 }
 
-.category-list-item button:hover {
-    transform: scale(1.1);
+.category-list-item:hover {
+    border-color: var(--gold);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.12);
+}
+
+.category-list-item .cat-item-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--dark-neutral);
+    letter-spacing: 0.5px;
+}
+
+.category-list-item .btn-delete-cat {
+    background-color: rgba(230, 57, 70, 0.08);
+    border: 1px solid rgba(230, 57, 70, 0.3);
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-smooth);
+}
+
+.category-list-item .btn-delete-cat:hover {
+    background-color: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(230, 57, 70, 0.3);
 }
 
 /* Footer Section */

@@ -1103,7 +1103,7 @@ class JNStore {
         } else if (tab === 'products') {
             this.renderAdminInventory();
         } else if (tab === 'categories') {
-            this.renderCategoriesList();
+            this.fetchCategories();
         } else if (tab === 'orders') {
             this.fetchOrders();
         } else if (tab === 'trash') {
@@ -1233,12 +1233,20 @@ class JNStore {
 
         catList.innerHTML = '';
 
+        if (!this.categories || this.categories.length === 0) {
+            catList.innerHTML = '<li style="padding: 20px; color: var(--gray-dark); text-align: center; list-style: none;">No hay categorías registradas en el sistema.</li>';
+            return;
+        }
+
         this.categories.forEach(c => {
             const li = document.createElement('li');
             li.className = 'category-list-item';
+            const escapedName = (c.name || '').replace(/'/g, "\\'");
             li.innerHTML = `
-                <span>${c.name}</span>
-                <button onclick="app.handleDeleteCategory('${c.id}')"><i class="fas fa-trash"></i> Eliminar</button>
+                <span class="cat-item-name">${c.name}</span>
+                <button type="button" class="btn-delete-cat" onclick="app.handleDeleteCategory('${c.id}', '${escapedName}')" title="Eliminar categoría ${escapedName}">
+                    <i class="fas fa-trash-alt"></i> Eliminar
+                </button>
             `;
             catList.appendChild(li);
         });
@@ -1519,7 +1527,16 @@ class JNStore {
     async handleCreateCategory(event) {
         event.preventDefault();
         const input = document.getElementById('category-name');
-        const name = input.value;
+        if (!input) return;
+        const name = input.value.trim();
+        if (!name) return;
+
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.innerHTML : 'Crear Categoría';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+        }
 
         try {
             const res = await fetch('/api/categories', {
@@ -1531,17 +1548,25 @@ class JNStore {
             if (res.ok) {
                 input.value = '';
                 await this.fetchCategories();
-                alert('Categoría creada exitosamente.');
+                alert(`Categoría "${name}" creada exitosamente.`);
             } else {
-                alert('Error al crear categoría.');
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'Error al crear la categoría.');
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error al crear categoría:", e);
+            alert('Error de conexión al crear categoría.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
         }
     }
 
-    async handleDeleteCategory(catId) {
-        if (!confirm('¿Deseas eliminar esta categoría?')) return;
+    async handleDeleteCategory(catId, catName = '') {
+        const msg = catName ? `¿Deseas eliminar la categoría "${catName}"?` : '¿Deseas eliminar esta categoría?';
+        if (!confirm(msg)) return;
 
         try {
             const res = await fetch(`/api/categories/${catId}`, {
@@ -1550,12 +1575,14 @@ class JNStore {
 
             if (res.ok) {
                 await this.fetchCategories();
-                alert('Categoría eliminada.');
+                alert('Categoría eliminada exitosamente.');
             } else {
-                alert('No se pudo eliminar la categoría.');
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'No se pudo eliminar la categoría.');
             }
         } catch (e) {
-            console.error(e);
+            console.error("Error al eliminar categoría:", e);
+            alert('Error de conexión al eliminar categoría.');
         }
     }
 

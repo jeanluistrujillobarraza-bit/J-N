@@ -25,8 +25,6 @@ public class CategoryController {
 
     @GetMapping
     public ResponseEntity<List<Category>> getAllCategories() {
-        // Seed categories on first fetch if empty
-        categoryService.seedCategories();
         return ResponseEntity.ok(categoryService.getAllCategories());
     }
 
