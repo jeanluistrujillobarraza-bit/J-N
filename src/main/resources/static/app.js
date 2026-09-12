@@ -776,6 +776,8 @@ class JNStore {
             } else {
                 banner.classList.add('hidden');
             }
+        }
+
         // Re-render navigation categories to update dropdown selection label
         this.renderNavigationCategories();
 
