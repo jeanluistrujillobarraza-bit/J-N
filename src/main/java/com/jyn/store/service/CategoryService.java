@@ -15,13 +15,7 @@ public class CategoryService {
     private CategoryRepository categoryRepository;
 
     public List<Category> getAllCategories() {
-        List<Category> list = categoryRepository.findAll();
-        if (list == null || list.isEmpty()) {
-            categoryRepository.save(new Category("Maquillaje"));
-            categoryRepository.save(new Category("Ropa"));
-            list = categoryRepository.findAll();
-        }
-        return list;
+        return categoryRepository.findAll();
     }
 
     public Optional<Category> getCategoryById(String id) {
@@ -40,19 +34,5 @@ public class CategoryService {
 
     public void deleteCategory(String id) {
         categoryRepository.deleteById(id);
-    }
-    
-    // Seed default categories automatically on application startup
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
-    public void seedCategories() {
-        try {
-            if (categoryRepository.count() == 0) {
-                categoryRepository.save(new Category("Maquillaje"));
-                categoryRepository.save(new Category("Ropa"));
-                System.out.println(">>> Categorías por defecto creadas: Maquillaje, Ropa");
-            }
-        } catch (Exception e) {
-            System.err.println(">>> [Aviso] Error sembrando categorías: " + e.getMessage());
-        }
     }
 }
