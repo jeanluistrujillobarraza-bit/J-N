@@ -54,15 +54,22 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado"));
         }
         
-        // Simple validations
-        if (product.getName() == null || product.getName().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio"));
+        try {
+            // Simple validations
+            if (product.getName() == null || product.getName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio"));
+            }
+            if (product.getPrice() <= 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El precio debe ser mayor a 0"));
+            }
+            
+            Product saved = productService.saveProduct(product);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al guardar el producto: " + e.getMessage()));
         }
-        if (product.getPrice() <= 0) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El precio debe ser mayor a 0"));
-        }
-        
-        return ResponseEntity.ok(productService.saveProduct(product));
     }
 
     @DeleteMapping("/{id}")

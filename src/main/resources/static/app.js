@@ -1483,6 +1483,19 @@ class JNStore {
             productObj.variations = variations;
         }
 
+        if (!productObj.images || productObj.images.length === 0) {
+            productObj.images = type === 'ropa'
+                ? ['https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop']
+                : ['https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop'];
+        }
+
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Guardar Producto';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        }
+
         try {
             const res = await fetch('/api/products', {
                 method: 'POST',
@@ -1493,14 +1506,19 @@ class JNStore {
             if (res.ok) {
                 this.closeProductModal();
                 await this.fetchProducts();
-                alert('Producto guardado exitosamente');
+                alert('¡Producto guardado exitosamente!');
             } else {
-                const errData = await res.json();
+                const errData = await res.json().catch(() => ({}));
                 alert(errData.error || 'Error al guardar el producto.');
             }
         } catch (e) {
             console.error(e);
-            alert('Error de conexión al guardar.');
+            alert('Error de conexión al guardar el producto.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
         }
     }
 

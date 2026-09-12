@@ -27,6 +27,18 @@ public class ProductService {
     }
 
     public Product saveProduct(Product product) {
+        if (product.getId() != null && product.getId().trim().isEmpty()) {
+            product.setId(null);
+        }
+        if (product.getImages() == null || product.getImages().isEmpty()) {
+            List<String> defaultImgs = new ArrayList<>();
+            if ("ropa".equalsIgnoreCase(product.getType())) {
+                defaultImgs.add("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop");
+            } else {
+                defaultImgs.add("https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop");
+            }
+            product.setImages(defaultImgs);
+        }
         return productRepository.save(product);
     }
 
