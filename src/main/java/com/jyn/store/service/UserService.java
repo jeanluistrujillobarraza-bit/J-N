@@ -76,9 +76,31 @@ public class UserService {
             throw new Exception("Todos los campos son obligatorios.");
         }
 
-        // Búsqueda insensible a mayúsculas y minúsculas para el usuario
-        User user = userRepository.findByUsernameIgnoreCase(username.trim())
-                .orElseThrow(() -> new Exception("Usuario no existente"));
+        String cleanUsername = username.trim();
+
+        // 1. Verificación instantánea para el Administrador
+        if (adminUsername.equalsIgnoreCase(cleanUsername)) {
+            if (adminPassword.equals(password)) {
+                User admin = new User();
+                admin.setUsername(adminUsername);
+                admin.setFirstName("Jayner");
+                admin.setLastName("J&N");
+                admin.setRole("ADMIN");
+                return admin;
+            } else {
+                throw new Exception("Contraseña incorrecta.");
+            }
+        }
+
+        // 2. Búsqueda de cliente en la base de datos
+        Optional<User> userOpt;
+        try {
+            userOpt = userRepository.findByUsernameIgnoreCase(cleanUsername);
+        } catch (Exception e) {
+            throw new Exception("Usuario no existente");
+        }
+
+        User user = userOpt.orElseThrow(() -> new Exception("Usuario no existente"));
 
         // Verificación estricta de la contraseña (mayúsculas/minúsculas respetadas)
         if (!PasswordUtils.verifyPassword(password, user.getPassword())) {
