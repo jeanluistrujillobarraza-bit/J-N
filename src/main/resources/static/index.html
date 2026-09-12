@@ -247,23 +247,55 @@
 
                     <!-- Trash Tab -->
                     <div class="admin-tab-content hidden" id="content-trash">
-                        <h3 class="content-title">Papelera de Pedidos Eliminados</h3>
-                        <div class="table-container">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Código</th>
-                                        <th>Cliente</th>
-                                        <th>Fecha</th>
-                                        <th>Detalles de Productos</th>
-                                        <th>Total</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-trash-table-body">
-                                    <!-- Soft-deleted orders list -->
-                                </tbody>
-                            </table>
+                        <div class="trash-header-area" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 class="content-title" style="margin-bottom: 0;">Papelera del Sistema</h3>
+                            <div class="trash-nav-tabs" style="display: flex; gap: 10px;">
+                                <button type="button" class="gold-btn btn-sm" id="trash-tab-products-btn" onclick="app.setTrashSubTab('products')"><i class="fas fa-box"></i> Productos</button>
+                                <button type="button" class="outline-btn btn-sm" id="trash-tab-orders-btn" onclick="app.setTrashSubTab('orders')"><i class="fas fa-receipt"></i> Pedidos</button>
+                            </div>
+                        </div>
+
+                        <!-- Deleted Products Section -->
+                        <div id="trash-products-section">
+                            <h4 style="font-size: 15px; margin-bottom: 12px; color: var(--gray-dark);"><i class="fas fa-box-open"></i> Productos en Papelera</h4>
+                            <div class="table-container">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Imagen</th>
+                                            <th>Nombre</th>
+                                            <th>Categoría / Tipo</th>
+                                            <th>Precio</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-trash-products-table-body">
+                                        <!-- Soft-deleted products list -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Deleted Orders Section -->
+                        <div id="trash-orders-section" class="hidden" style="margin-top: 20px;">
+                            <h4 style="font-size: 15px; margin-bottom: 12px; color: var(--gray-dark);"><i class="fas fa-receipt"></i> Pedidos en Papelera</h4>
+                            <div class="table-container">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Código</th>
+                                            <th>Cliente</th>
+                                            <th>Fecha</th>
+                                            <th>Detalles de Productos</th>
+                                            <th>Total</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-trash-table-body">
+                                        <!-- Soft-deleted orders list -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

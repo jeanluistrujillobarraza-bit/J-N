@@ -18,6 +18,7 @@ public class Product {
     private String type; // "maquillaje" or "ropa"
     private int generalStock; // For makeup
     private List<SizeColorStock> variations = new ArrayList<>(); // For clothing
+    private boolean deleted = false; // Soft delete for Trash management
 
     public Product() {}
 
@@ -91,5 +92,13 @@ public class Product {
 
     public void setVariations(List<SizeColorStock> variations) {
         this.variations = variations;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 }

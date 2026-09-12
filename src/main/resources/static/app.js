@@ -15,6 +15,8 @@ class JNStore {
         this.currentAdminTab = 'dashboard';
         this.orders = [];
         this.deletedOrders = [];
+        this.deletedProducts = [];
+        this.trashSubTab = 'products';
         
         // Temporary Form state
         this.formUploadedImages = [];
@@ -1113,6 +1115,7 @@ class JNStore {
         } else if (tab === 'orders') {
             this.fetchOrders();
         } else if (tab === 'trash') {
+            this.fetchDeletedProducts();
             this.fetchDeletedOrders();
         }
     }
@@ -1529,7 +1532,7 @@ class JNStore {
     }
 
     async handleDeleteProduct(productId) {
-        if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+        if (!confirm('¿Deseas mover este producto a la papelera? Podrás restaurarlo o eliminarlo definitivamente en cualquier momento.')) return;
 
         try {
             const res = await fetch(`/api/products/${productId}`, {
@@ -1538,7 +1541,7 @@ class JNStore {
 
             if (res.ok) {
                 await this.fetchProducts();
-                alert('¡Producto eliminado exitosamente!');
+                alert('¡Producto movido a la papelera con éxito!');
             } else if (res.status === 401) {
                 alert('Tu sesión de administrador ha expirado tras el reinicio del servidor. Por favor, vuelve a iniciar sesión con tu usuario y contraseña.');
                 this.openLoginTab();
@@ -1747,12 +1750,129 @@ class JNStore {
     }
 
     // Trash / soft delete management methods
+    setTrashSubTab(tab) {
+        this.trashSubTab = tab;
+        const prodBtn = document.getElementById('trash-tab-products-btn');
+        const ordersBtn = document.getElementById('trash-tab-orders-btn');
+        const prodSec = document.getElementById('trash-products-section');
+        const ordersSec = document.getElementById('trash-orders-section');
+
+        if (tab === 'products') {
+            if (prodBtn) prodBtn.className = 'gold-btn btn-sm';
+            if (ordersBtn) ordersBtn.className = 'outline-btn btn-sm';
+            if (prodSec) prodSec.classList.remove('hidden');
+            if (ordersSec) ordersSec.classList.add('hidden');
+            this.fetchDeletedProducts();
+        } else {
+            if (prodBtn) prodBtn.className = 'outline-btn btn-sm';
+            if (ordersBtn) ordersBtn.className = 'gold-btn btn-sm';
+            if (prodSec) prodSec.classList.add('hidden');
+            if (ordersSec) ordersSec.classList.remove('hidden');
+            this.fetchDeletedOrders();
+        }
+    }
+
+    async fetchDeletedProducts() {
+        try {
+            const res = await fetch('/api/products/deleted');
+            if (res.ok) {
+                this.deletedProducts = await res.json();
+                this.renderAdminTrashProducts();
+            } else {
+                console.error("Error al obtener productos eliminados");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    renderAdminTrashProducts() {
+        const tbody = document.getElementById('admin-trash-products-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (!this.deletedProducts || this.deletedProducts.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--gray-dark); padding: 30px;">
+                        No hay productos en la papelera.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        this.deletedProducts.forEach(p => {
+            const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><img src="${mainImg}" alt="${p.name}" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
+                <td><strong>${p.name}</strong></td>
+                <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category || p.type}</span></td>
+                <td>${this.formatPrice(p.price)}</td>
+                <td>
+                    <div class="admin-table-actions">
+                        <button class="action-icon-btn edit" title="Restaurar Producto" onclick="app.restoreProduct('${p.id}')">
+                            <i class="fas fa-trash-restore-alt" style="color: var(--success); font-size: 14px;"></i> Restaurar
+                        </button>
+                        <button class="action-icon-btn delete" title="Eliminar Definitivamente" onclick="app.permanentlyDeleteProduct('${p.id}')">
+                            <i class="fas fa-times-circle" style="color: var(--danger); font-size: 14px;"></i> Purgar
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async restoreProduct(productId) {
+        try {
+            const res = await fetch(`/api/products/${productId}/restore`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                alert('¡Producto restaurado exitosamente al inventario!');
+                await this.fetchProducts();
+                await this.fetchDeletedProducts();
+                await this.renderAdminDashboard();
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'Error al restaurar el producto.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión al restaurar el producto.');
+        }
+    }
+
+    async permanentlyDeleteProduct(productId) {
+        if (!confirm('¿Estás seguro de que deseas eliminar permanentemente este producto de la base de datos? Esta acción no se puede deshacer.')) return;
+
+        try {
+            const res = await fetch(`/api/products/${productId}/permanent`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert('Producto eliminado definitivamente.');
+                await this.fetchDeletedProducts();
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'Error al eliminar definitivamente.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión.');
+        }
+    }
+
     async fetchDeletedOrders() {
         try {
             const res = await fetch('/api/orders/deleted');
             if (res.ok) {
                 this.deletedOrders = await res.json();
-                this.renderAdminTrash();
+                this.renderAdminTrashOrders();
             } else {
                 console.error("Error al obtener pedidos eliminados");
             }
@@ -1761,17 +1881,17 @@ class JNStore {
         }
     }
 
-    renderAdminTrash() {
+    renderAdminTrashOrders() {
         const tbody = document.getElementById('admin-trash-table-body');
         if (!tbody) return;
 
         tbody.innerHTML = '';
 
-        if (this.deletedOrders.length === 0) {
+        if (!this.deletedOrders || this.deletedOrders.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="6" style="text-align: center; color: var(--gray-dark); padding: 30px;">
-                        La papelera está vacía.
+                        No hay pedidos en la papelera.
                     </td>
                 </tr>`;
             return;

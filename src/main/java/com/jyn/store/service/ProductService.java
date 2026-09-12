@@ -19,7 +19,11 @@ public class ProductService {
     private ProductRepository productRepository;
 
     public List<Product> getAllProducts() {
-        return productRepository.findAll();
+        return productRepository.findActiveProducts();
+    }
+
+    public List<Product> getDeletedProducts() {
+        return productRepository.findDeletedProducts();
     }
 
     public Optional<Product> getProductById(String id) {
@@ -42,7 +46,28 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    // Move to Trash (Soft Delete)
     public void deleteProduct(String id) {
+        Optional<Product> optional = productRepository.findById(id);
+        if (optional.isPresent()) {
+            Product prod = optional.get();
+            prod.setDeleted(true);
+            productRepository.save(prod);
+        }
+    }
+
+    // Restore from Trash
+    public void restoreProduct(String id) {
+        Optional<Product> optional = productRepository.findById(id);
+        if (optional.isPresent()) {
+            Product prod = optional.get();
+            prod.setDeleted(false);
+            productRepository.save(prod);
+        }
+    }
+
+    // Permanent Deletion
+    public void permanentDeleteProduct(String id) {
         productRepository.deleteById(id);
     }
 
@@ -63,13 +88,13 @@ public class ProductService {
         } else if (hasQuery) {
             return productRepository.searchByNameOrDescription(query);
         } else {
-            return productRepository.findAll();
+            return productRepository.findActiveProducts();
         }
     }
 
     public List<StockAlert> getStockAlerts() {
         List<StockAlert> alerts = new ArrayList<>();
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findActiveProducts();
 
         for (Product product : products) {
             if ("maquillaje".equalsIgnoreCase(product.getType())) {

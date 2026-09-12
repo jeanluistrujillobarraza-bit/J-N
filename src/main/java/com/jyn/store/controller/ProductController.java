@@ -79,12 +79,50 @@ public class ProductController {
         }
         try {
             productService.deleteProduct(id);
-            return ResponseEntity.ok(Map.of("message", "Producto eliminado exitosamente"));
+            return ResponseEntity.ok(Map.of("message", "Producto movido a la papelera exitosamente"));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error al eliminar el producto: " + e.getMessage()));
+                    .body(Map.of("error", "Error al mover producto a papelera: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<?> restoreProduct(@PathVariable String id, HttpSession session) {
+        if (isNotAdmin(session)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado. Sesión expirada."));
+        }
+        try {
+            productService.restoreProduct(id);
+            return ResponseEntity.ok(Map.of("message", "Producto restaurado exitosamente"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al restaurar producto: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<?> permanentDeleteProduct(@PathVariable String id, HttpSession session) {
+        if (isNotAdmin(session)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado. Sesión expirada."));
+        }
+        try {
+            productService.permanentDeleteProduct(id);
+            return ResponseEntity.ok(Map.of("message", "Producto eliminado definitivamente de la base de datos"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al eliminar producto: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/deleted")
+    public ResponseEntity<?> getDeletedProducts(HttpSession session) {
+        if (isNotAdmin(session)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado"));
+        }
+        return ResponseEntity.ok(productService.getDeletedProducts());
     }
 
     @GetMapping("/alerts")
