@@ -5,9 +5,10 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# Stage 2: Runtime with JRE 21 (Debian-based for full TLS/SSL Atlas support)
+# Stage 2: Runtime with JRE 21
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/store-0.0.1-SNAPSHOT.jar app.jar
+ENV JAVA_TOOL_OPTIONS="-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2"
 EXPOSE 8080
-ENTRYPOINT ["java", "-Djdk.tls.client.protocols=TLSv1.2,TLSv1.3", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
