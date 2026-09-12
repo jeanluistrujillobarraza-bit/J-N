@@ -1249,7 +1249,18 @@ class JNStore {
         if (!select) return;
 
         select.innerHTML = '';
-        this.categories.forEach(c => {
+        const cats = this.categories && this.categories.length > 0 
+            ? this.categories 
+            : [
+                { id: '1', name: 'Maquillaje' }, 
+                { id: '2', name: 'Ropa' }, 
+                { id: '3', name: 'Vestidos' }, 
+                { id: '4', name: 'Labiales' }, 
+                { id: '5', name: 'Cuidado Facial' }, 
+                { id: '6', name: 'Accesorios' }
+              ];
+
+        cats.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.name;
             opt.innerText = c.name;
@@ -1259,54 +1270,75 @@ class JNStore {
 
     // Product Create / Edit Modal logic
     openProductModal(productId = null) {
-        const form = document.getElementById('product-form');
-        form.reset();
-        
-        this.formUploadedImages = [];
-        document.getElementById('image-previews-container').innerHTML = '';
-        document.getElementById('form-variations-list').innerHTML = '';
-
-        this.populateCategorySelect();
-
-        if (productId) {
-            // Edit mode
-            const p = this.products.find(prod => prod.id === productId);
-            if (!p) return;
-
-            document.getElementById('product-form-title').innerText = 'Editar Producto';
-            document.getElementById('form-product-id').value = p.id;
-            document.getElementById('form-product-name').value = p.name;
-            document.getElementById('form-product-price').value = p.price;
-            document.getElementById('form-product-description').value = p.description;
-            document.getElementById('form-product-type').value = p.type;
-            document.getElementById('form-product-category').value = p.category;
-
-            // Load images
-            this.formUploadedImages = [...p.images];
-            this.renderFormImagePreviews();
-
-            // Handle type sections
-            this.handleProductTypeChange();
-
-            if (p.type === 'maquillaje') {
-                document.getElementById('form-product-stock').value = p.generalStock;
-            } else {
-                p.variations.forEach(v => {
-                    this.addVariationRow(v.size, v.color, v.stock);
-                });
-            }
-        } else {
-            // Add mode
-            document.getElementById('product-form-title').innerText = 'Agregar Nuevo Producto';
-            document.getElementById('form-product-id').value = '';
+        try {
+            const form = document.getElementById('product-form');
+            if (form) form.reset();
             
-            // Set defaults
-            document.getElementById('form-product-type').value = 'maquillaje';
-            this.handleProductTypeChange();
-            document.getElementById('form-product-stock').value = 10;
+            this.formUploadedImages = [];
+            const previews = document.getElementById('image-previews-container');
+            if (previews) previews.innerHTML = '';
+            const varList = document.getElementById('form-variations-list');
+            if (varList) varList.innerHTML = '';
+
+            this.populateCategorySelect();
+
+            if (productId) {
+                // Edit mode
+                const p = this.products.find(prod => prod.id === productId);
+                if (p) {
+                    const title = document.getElementById('product-form-title');
+                    if (title) title.innerText = 'Editar Producto';
+                    const idEl = document.getElementById('form-product-id');
+                    if (idEl) idEl.value = p.id;
+                    const nameEl = document.getElementById('form-product-name');
+                    if (nameEl) nameEl.value = p.name || '';
+                    const priceEl = document.getElementById('form-product-price');
+                    if (priceEl) priceEl.value = p.price || '';
+                    const descEl = document.getElementById('form-product-description');
+                    if (descEl) descEl.value = p.description || '';
+                    const typeEl = document.getElementById('form-product-type');
+                    if (typeEl) typeEl.value = p.type || 'maquillaje';
+                    const catEl = document.getElementById('form-product-category');
+                    if (catEl) catEl.value = p.category || '';
+
+                    // Load images
+                    if (p.images) {
+                        this.formUploadedImages = [...p.images];
+                        this.renderFormImagePreviews();
+                    }
+
+                    // Handle type sections
+                    this.handleProductTypeChange();
+
+                    if (p.type === 'maquillaje') {
+                        const stockEl = document.getElementById('form-product-stock');
+                        if (stockEl) stockEl.value = p.generalStock || 0;
+                    } else if (p.variations) {
+                        p.variations.forEach(v => {
+                            this.addVariationRow(v.size, v.color, v.stock);
+                        });
+                    }
+                }
+            } else {
+                // Add mode
+                const title = document.getElementById('product-form-title');
+                if (title) title.innerText = 'Agregar Nuevo Producto';
+                const idEl = document.getElementById('form-product-id');
+                if (idEl) idEl.value = '';
+                
+                // Set defaults
+                const typeEl = document.getElementById('form-product-type');
+                if (typeEl) typeEl.value = 'maquillaje';
+                this.handleProductTypeChange();
+                const stockEl = document.getElementById('form-product-stock');
+                if (stockEl) stockEl.value = 10;
+            }
+        } catch (e) {
+            console.error("Error al abrir modal de producto:", e);
         }
 
-        document.getElementById('product-form-modal').classList.remove('hidden');
+        const modal = document.getElementById('product-form-modal');
+        if (modal) modal.classList.remove('hidden');
     }
 
     closeProductModal() {
