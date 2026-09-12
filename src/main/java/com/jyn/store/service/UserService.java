@@ -55,30 +55,33 @@ public class UserService {
         if (client.getUsername() == null || client.getUsername().trim().isEmpty()) {
             throw new Exception("El nombre de usuario es obligatorio.");
         }
-        if (client.getPassword() == null || client.getPassword().trim().isEmpty()) {
+        if (client.getPassword() == null || client.getPassword().isEmpty()) {
             throw new Exception("La contraseña es obligatoria.");
         }
         
         String cleanUsername = client.getUsername().trim();
-        if (userRepository.findByUsername(cleanUsername).isPresent()) {
+        if (userRepository.findByUsernameIgnoreCase(cleanUsername).isPresent()) {
             throw new Exception("El nombre de usuario ya está registrado.");
         }
 
         client.setUsername(cleanUsername);
-        client.setPassword(PasswordUtils.hashPassword(client.getPassword().trim()));
+        // La contraseña se guarda exactamente como la escribió el usuario (sensible a mayúsculas/minúsculas)
+        client.setPassword(PasswordUtils.hashPassword(client.getPassword()));
         client.setRole("CLIENT");
         return userRepository.save(client);
     }
 
     public User authenticate(String username, String password) throws Exception {
-        if (username == null || username.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+        if (username == null || username.trim().isEmpty() || password == null || password.isEmpty()) {
             throw new Exception("Todos los campos son obligatorios.");
         }
 
-        User user = userRepository.findByUsername(username.trim())
-                .orElseThrow(() -> new Exception("Usuario no encontrado o credenciales incorrectas."));
+        // Búsqueda insensible a mayúsculas y minúsculas para el usuario
+        User user = userRepository.findByUsernameIgnoreCase(username.trim())
+                .orElseThrow(() -> new Exception("Usuario no existente"));
 
-        if (!PasswordUtils.verifyPassword(password.trim(), user.getPassword())) {
+        // Verificación estricta de la contraseña (mayúsculas/minúsculas respetadas)
+        if (!PasswordUtils.verifyPassword(password, user.getPassword())) {
             throw new Exception("Contraseña incorrecta.");
         }
 
