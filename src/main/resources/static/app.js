@@ -1320,9 +1320,14 @@ class JNStore {
             const escapedName = (c.name || '').replace(/'/g, "\\'");
             li.innerHTML = `
                 <span class="cat-item-name">${c.name}</span>
-                <button type="button" class="btn-delete-cat" onclick="app.handleDeleteCategory('${c.id}', '${escapedName}')" title="Eliminar categoría ${escapedName}">
-                    <i class="fas fa-trash-alt"></i> Eliminar
-                </button>
+                <div class="cat-item-actions">
+                    <button type="button" class="btn-edit-cat" onclick="app.startEditCategory('${c.id}', '${escapedName}')" title="Editar categoría ${escapedName}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" class="btn-delete-cat" onclick="app.handleDeleteCategory('${c.id}', '${escapedName}')" title="Eliminar categoría ${escapedName}">
+                        <i class="fas fa-trash-alt"></i> Eliminar
+                    </button>
+                </div>
             `;
             catList.appendChild(li);
         });
@@ -1623,38 +1628,81 @@ class JNStore {
     }
 
     // Categories CRUD actions
-    async handleCreateCategory(event) {
+    startEditCategory(catId, catName) {
+        const idInput = document.getElementById('category-id');
+        const nameInput = document.getElementById('category-name');
+        const formTitle = document.getElementById('category-form-title');
+        const submitBtn = document.getElementById('category-submit-btn');
+        const cancelBtn = document.getElementById('category-cancel-btn');
+
+        if (idInput) idInput.value = catId;
+        if (nameInput) {
+            nameInput.value = catName;
+            nameInput.focus();
+        }
+        if (formTitle) formTitle.textContent = 'Editar Categoría';
+        if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+        // Scroll to form smoothly on mobile
+        const formCard = document.querySelector('.category-form-card');
+        if (formCard) formCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    cancelEditCategory() {
+        const idInput = document.getElementById('category-id');
+        const nameInput = document.getElementById('category-name');
+        const formTitle = document.getElementById('category-form-title');
+        const submitBtn = document.getElementById('category-submit-btn');
+        const cancelBtn = document.getElementById('category-cancel-btn');
+
+        if (idInput) idInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (formTitle) formTitle.textContent = 'Nueva Categoría';
+        if (submitBtn) submitBtn.textContent = 'Crear Categoría';
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+    }
+
+    async handleSaveCategory(event) {
         event.preventDefault();
-        const input = document.getElementById('category-name');
-        if (!input) return;
-        const name = input.value.trim();
+        const idInput = document.getElementById('category-id');
+        const nameInput = document.getElementById('category-name');
+        if (!nameInput) return;
+
+        const catId = idInput ? idInput.value.trim() : '';
+        const name = nameInput.value.trim();
         if (!name) return;
 
-        const submitBtn = event.target.querySelector('button[type="submit"]');
-        const originalText = submitBtn ? submitBtn.innerHTML : 'Crear Categoría';
+        const isEditing = !!catId;
+        const submitBtn = document.getElementById('category-submit-btn');
+        const originalText = submitBtn ? submitBtn.innerHTML : (isEditing ? 'Guardar Cambios' : 'Crear Categoría');
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${isEditing ? 'Guardando...' : 'Creando...'}`;
         }
 
         try {
-            const res = await fetch('/api/categories', {
-                method: 'POST',
+            const url = isEditing ? `/api/categories/${catId}` : '/api/categories';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name: name })
             });
 
             if (res.ok) {
-                input.value = '';
+                this.cancelEditCategory();
                 await this.fetchCategories();
-                alert(`Categoría "${name}" creada exitosamente.`);
+                await this.fetchProducts(); // Refresh products in case category name changed
+                alert(isEditing ? `Categoría actualizada exitosamente a "${name}".` : `Categoría "${name}" creada exitosamente.`);
             } else {
                 const errData = await res.json().catch(() => ({}));
-                alert(errData.error || 'Error al crear la categoría.');
+                alert(errData.error || `Error al ${isEditing ? 'actualizar' : 'crear'} la categoría.`);
             }
         } catch (e) {
-            console.error("Error al crear categoría:", e);
-            alert('Error de conexión al crear categoría.');
+            console.error(`Error al ${isEditing ? 'actualizar' : 'crear'} categoría:`, e);
+            alert(`Error de conexión al ${isEditing ? 'actualizar' : 'crear'} categoría.`);
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;

@@ -39,6 +39,22 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.saveCategory(category));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCategory(@PathVariable String id, @RequestBody Category category, HttpSession session) {
+        if (isNotAdmin(session)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado"));
+        }
+        if (category.getName() == null || category.getName().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio"));
+        }
+        try {
+            Category updated = categoryService.updateCategory(id, category.getName());
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable String id, HttpSession session) {
         if (isNotAdmin(session)) {

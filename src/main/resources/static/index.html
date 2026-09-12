@@ -204,13 +204,17 @@
                         <h3 class="content-title">Categorías del Sistema</h3>
                         <div class="category-manager-grid">
                             <div class="category-form-card">
-                                <h4>Nueva Categoría</h4>
-                                <form id="category-form" onsubmit="app.handleCreateCategory(event)">
+                                <h4 id="category-form-title">Nueva Categoría</h4>
+                                <form id="category-form" onsubmit="app.handleSaveCategory(event)">
+                                    <input type="hidden" id="category-id" value="">
                                     <div class="form-group">
                                         <label for="category-name">Nombre de Categoría</label>
                                         <input type="text" id="category-name" required placeholder="Ej: Vestidos, Labiales">
                                     </div>
-                                    <button type="submit" class="gold-btn w-100">Crear Categoría</button>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="submit" id="category-submit-btn" class="gold-btn w-100">Crear Categoría</button>
+                                        <button type="button" id="category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditCategory()" style="padding: 10px 14px;">Cancelar</button>
+                                    </div>
                                 </form>
                             </div>
                             <div class="category-list-card">
