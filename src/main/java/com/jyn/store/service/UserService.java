@@ -22,26 +22,31 @@ public class UserService {
     @Value("${admin.password:admin123}")
     private String adminPassword;
 
-    @PostConstruct
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     public void seedAdminUser() {
-        Optional<User> existingAdmin = userRepository.findByUsername(adminUsername);
-        if (existingAdmin.isEmpty()) {
-            User admin = new User();
-            admin.setUsername(adminUsername);
-            // Hash the admin password using our PasswordUtils
-            admin.setPassword(PasswordUtils.hashPassword(adminPassword));
-            admin.setFirstName("Administradora");
-            admin.setLastName("J&N");
-            admin.setRole("ADMIN");
-            userRepository.save(admin);
-        } else {
-            // Update admin password if config changed
-            User admin = existingAdmin.get();
-            String hashedConfigPass = PasswordUtils.hashPassword(adminPassword);
-            if (!admin.getPassword().equals(hashedConfigPass)) {
-                admin.setPassword(hashedConfigPass);
+        try {
+            Optional<User> existingAdmin = userRepository.findByUsername(adminUsername);
+            if (existingAdmin.isEmpty()) {
+                User admin = new User();
+                admin.setUsername(adminUsername);
+                // Hash the admin password using our PasswordUtils
+                admin.setPassword(PasswordUtils.hashPassword(adminPassword));
+                admin.setFirstName("Administradora");
+                admin.setLastName("J&N");
+                admin.setRole("ADMIN");
                 userRepository.save(admin);
+                System.out.println(">>> Usuario Administrador creado exitosamente.");
+            } else {
+                // Update admin password if config changed
+                User admin = existingAdmin.get();
+                String hashedConfigPass = PasswordUtils.hashPassword(adminPassword);
+                if (!admin.getPassword().equals(hashedConfigPass)) {
+                    admin.setPassword(hashedConfigPass);
+                    userRepository.save(admin);
+                }
             }
+        } catch (Exception e) {
+            System.err.println(">>> [Aviso] Error conectando a MongoDB en arranque: " + e.getMessage());
         }
     }
 
