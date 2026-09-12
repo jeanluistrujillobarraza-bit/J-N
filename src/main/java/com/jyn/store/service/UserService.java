@@ -16,10 +16,10 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    @Value("${admin.username:admin}")
+    @Value("${admin.username:jayner}")
     private String adminUsername;
 
-    @Value("${admin.password:admin123}")
+    @Value("${admin.password:jayner1801}")
     private String adminPassword;
 
     @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
@@ -31,11 +31,11 @@ public class UserService {
                 admin.setUsername(adminUsername);
                 // Hash the admin password using our PasswordUtils
                 admin.setPassword(PasswordUtils.hashPassword(adminPassword));
-                admin.setFirstName("Administradora");
+                admin.setFirstName("Jayner");
                 admin.setLastName("J&N");
                 admin.setRole("ADMIN");
                 userRepository.save(admin);
-                System.out.println(">>> Usuario Administrador creado exitosamente.");
+                System.out.println(">>> Usuario Administrador 'jayner' creado exitosamente.");
             } else {
                 // Update admin password if config changed
                 User admin = existingAdmin.get();
@@ -43,6 +43,7 @@ public class UserService {
                 if (!admin.getPassword().equals(hashedConfigPass)) {
                     admin.setPassword(hashedConfigPass);
                     userRepository.save(admin);
+                    System.out.println(">>> Contraseña de Administrador actualizada exitosamente.");
                 }
             }
         } catch (Exception e) {
