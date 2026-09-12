@@ -39,6 +39,20 @@ class JNStore {
         
         // Seeding default categories list in forms
         this.populateCategorySelect();
+
+        // Close dropdown when clicking or touching outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('nav-more-dropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+        document.addEventListener('touchstart', (e) => {
+            const dropdown = document.getElementById('nav-more-dropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        }, { passive: true });
     }
 
     // Load cart from local storage
@@ -162,14 +176,21 @@ class JNStore {
     }
 
     toggleMoreDropdown(event) {
-        if (event) event.preventDefault();
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         const dd = document.getElementById('nav-more-dropdown');
-        if (dd) dd.classList.toggle('open');
+        if (dd) {
+            dd.classList.toggle('open');
+        }
     }
 
     closeMoreDropdown() {
         const dd = document.getElementById('nav-more-dropdown');
-        if (dd) dd.classList.remove('open');
+        if (dd) {
+            dd.classList.remove('open');
+        }
     }
 
     // Fetch categories
