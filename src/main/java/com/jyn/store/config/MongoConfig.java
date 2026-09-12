@@ -12,6 +12,7 @@ public class MongoConfig {
     @Bean
     public MongoClientSettingsBuilderCustomizer mongoClientSettingsCustomizer() {
         return builder -> {
+            builder.applyToSslSettings(ssl -> ssl.enabled(true));
             builder.applyToSocketSettings(socket -> {
                 socket.connectTimeout(30, TimeUnit.SECONDS);
                 socket.readTimeout(30, TimeUnit.SECONDS);
