@@ -1,0 +1,2026 @@
+// J&N Store Application Logic
+
+class JNStore {
+    constructor() {
+        this.products = [];
+        this.categories = [];
+        this.cart = [];
+        this.activeCategory = 'todos';
+        this.searchQuery = '';
+        
+        // Admin & Client Auth States
+        this.isAdmin = false;
+        this.isClient = false;
+        this.currentUser = null;
+        this.currentAdminTab = 'dashboard';
+        this.orders = [];
+        this.deletedOrders = [];
+        
+        // Temporary Form state
+        this.formUploadedImages = [];
+        
+        // Detail Modal State
+        this.selectedDetailProduct = null;
+        this.selectedSize = '';
+        this.selectedColor = '';
+        this.selectedDetailImageIndex = 0;
+    }
+
+    // Initialize application
+    async init() {
+        this.loadCartFromStorage();
+        this.loadRememberedUser();
+        await this.checkSession();
+        await this.fetchCategories();
+        await this.fetchProducts();
+        this.renderCart();
+        
+        // Seeding default categories list in forms
+        this.populateCategorySelect();
+    }
+
+    // Load cart from local storage
+    loadCartFromStorage() {
+        const stored = localStorage.getItem('jn_cart');
+        if (stored) {
+            try {
+                this.cart = JSON.parse(stored);
+            } catch (e) {
+                this.cart = [];
+            }
+        }
+    }
+
+    // Save cart to local storage
+    saveCartToStorage() {
+        localStorage.setItem('jn_cart', JSON.stringify(this.cart));
+    }
+
+    // Check backend session status
+    async checkSession() {
+        try {
+            const res = await fetch('/api/auth/check');
+            const data = await res.json();
+            if (data.authenticated) {
+                if (data.role === 'ADMIN') {
+                    this.isAdmin = true;
+                    this.isClient = false;
+                    this.currentUser = { firstName: data.firstName, lastName: data.lastName, phone: data.phone || '' };
+                } else {
+                    this.isAdmin = false;
+                    this.isClient = true;
+                    this.currentUser = { firstName: data.firstName, lastName: data.lastName, phone: data.phone || '' };
+                }
+                this.prefillCustomerName(data.firstName, data.lastName, data.phone || '');
+            } else {
+                this.isAdmin = false;
+                this.isClient = false;
+                this.currentUser = null;
+            }
+            this.updateAdminHeaderUI();
+        } catch (e) {
+            console.error("Error al verificar sesión", e);
+        }
+    }
+
+    prefillCustomerName(first, last, phone) {
+        const firstNameEl = document.getElementById('cart-customer-first-name');
+        const lastNameEl = document.getElementById('cart-customer-last-name');
+        const phoneEl = document.getElementById('cart-customer-phone');
+        if (firstNameEl && first) firstNameEl.value = first;
+        if (lastNameEl && last) lastNameEl.value = last;
+        if (phoneEl && phone) phoneEl.value = phone;
+    }
+
+    slugify(text) {
+        return text.toString().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // remove accents
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '');
+    }
+
+    renderNavigationCategories() {
+        const headerNav = document.getElementById('header-nav-links');
+        const filterPills = document.getElementById('catalog-filter-pills');
+
+        // Render Header Nav Links
+        if (headerNav) {
+            let navHtml = `<a href="#" onclick="app.filterCategory('todos'); return false;" class="${this.activeCategory === 'todos' ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
+            this.categories.forEach(c => {
+                const slug = this.slugify(c.name);
+                const isActive = this.activeCategory === c.name.toLowerCase();
+                navHtml += `<a href="#" onclick="app.filterCategory('${c.name.toLowerCase()}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${c.name}</a>`;
+            });
+            headerNav.innerHTML = navHtml;
+        }
+
+        // Render Catalog Filter Pills
+        if (filterPills) {
+            let pillsHtml = `<button class="pill ${this.activeCategory === 'todos' ? 'active' : ''}" onclick="app.filterCategory('todos')" id="pill-todos">Todos</button>`;
+            this.categories.forEach(c => {
+                const slug = this.slugify(c.name);
+                const isActive = this.activeCategory === c.name.toLowerCase();
+                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterCategory('${c.name.toLowerCase()}')" id="pill-${slug}">${c.name}</button>`;
+            });
+            filterPills.innerHTML = pillsHtml;
+        }
+    }
+
+    // Fetch categories
+    async fetchCategories() {
+        try {
+            const res = await fetch('/api/categories');
+            this.categories = await res.json();
+            this.renderCategoriesList();
+            this.populateCategorySelect();
+            this.renderNavigationCategories();
+        } catch (e) {
+            console.error("Error al obtener categorías", e);
+        }
+    }
+
+    // Fetch products
+    async fetchProducts() {
+        try {
+            let url = '/api/products';
+            const params = [];
+            if (this.activeCategory && this.activeCategory !== 'todos') {
+                params.push(`category=${encodeURIComponent(this.activeCategory)}`);
+            }
+            if (this.searchQuery) {
+                params.push(`query=${encodeURIComponent(this.searchQuery)}`);
+            }
+            if (params.length > 0) {
+                url += '?' + params.join('&');
+            }
+
+            const res = await fetch(url);
+            this.products = await res.json();
+            
+            if (this.isAdmin) {
+                this.renderAdminInventory();
+                this.renderAdminDashboard();
+            }
+            this.renderProducts();
+        } catch (e) {
+            console.error("Error al obtener productos", e);
+        }
+    }
+
+    // Render client catalog
+    renderProducts() {
+        const grid = document.getElementById('products-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        if (this.products.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-cart-message" style="grid-column: 1/-1;">
+                    <i class="fas fa-search"></i>
+                    <p>No se encontraron productos en esta sección.</p>
+                </div>`;
+            return;
+        }
+
+        this.products.forEach(p => {
+            const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
+            const isClothing = p.type === 'ropa';
+            
+            // Check overall stock
+            let isOutOfStock = false;
+            if (p.type === 'maquillaje') {
+                isOutOfStock = p.generalStock <= 0;
+            } else {
+                // For clothing, out of stock if all variations are 0
+                isOutOfStock = !p.variations || p.variations.length === 0 || p.variations.every(v => v.stock <= 0);
+            }
+
+            // Calculate stock display text
+            let stockHtml = '';
+            if (p.type === 'maquillaje') {
+                if (isOutOfStock) {
+                    stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
+                } else {
+                    stockHtml = `<span class="product-card-stock">Quedan: ${p.generalStock} unidades</span>`;
+                }
+            } else {
+                const totalStock = p.variations ? p.variations.reduce((acc, curr) => acc + curr.stock, 0) : 0;
+                if (totalStock <= 0) {
+                    stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
+                } else {
+                    const availableSizes = p.variations ? [...new Set(p.variations.filter(v => v.stock > 0).map(v => v.size))] : [];
+                    const sizeText = availableSizes.length > 0 ? ` (Tallas: ${availableSizes.join(', ')})` : '';
+                    stockHtml = `<span class="product-card-stock">Quedan: ${totalStock} unidades${sizeText}</span>`;
+                }
+            }
+
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            card.innerHTML = `
+                <span class="product-card-badge ${p.type}">${p.type}</span>
+                <div class="product-card-image" onclick="app.openProductDetails('${p.id}')">
+                    <img src="${mainImg}" alt="${p.name}">
+                    <div class="quick-view-overlay">
+                        <span>Ver Detalles</span>
+                    </div>
+                </div>
+                <div class="product-card-info">
+                    <span class="product-card-category">${p.category}</span>
+                    <h4 class="product-card-title">${p.name}</h4>
+                    <span class="product-card-price">${this.formatPrice(p.price)}</span>
+                    ${stockHtml}
+                    <div class="product-card-action">
+                        <button onclick="app.openProductDetails('${p.id}')" ${isOutOfStock ? 'disabled' : ''}>
+                            ${isOutOfStock ? 'Agotado' : 'Comprar'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // Open detail modal
+    openProductDetails(id) {
+        const product = this.products.find(p => p.id === id);
+        if (!product) return;
+
+        this.selectedDetailProduct = product;
+        this.selectedSize = '';
+        this.selectedColor = '';
+        this.selectedDetailImageIndex = 0;
+
+        const modal = document.getElementById('product-detail-modal');
+        const content = document.getElementById('product-detail-content');
+        
+        modal.classList.remove('hidden');
+        this.renderProductDetailsContent();
+    }
+
+    renderProductDetailsContent() {
+        const p = this.selectedDetailProduct;
+        const content = document.getElementById('product-detail-content');
+        if (!p || !content) return;
+
+        const images = p.images && p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop'];
+        const currentMainImage = images[this.selectedDetailImageIndex];
+
+        // Create Thumbnail buttons html
+        let thumbsHtml = '';
+        if (images.length > 1) {
+            images.forEach((img, idx) => {
+                thumbsHtml += `
+                    <div class="thumb ${idx === this.selectedDetailImageIndex ? 'active' : ''}" onclick="app.setDetailImageIndex(${idx})">
+                        <img src="${img}">
+                    </div>`;
+            });
+        }
+
+        // Determine stock availability
+        let stockIndicatorHtml = '';
+        let isGeneralOutOfStock = false;
+        
+        if (p.type === 'maquillaje') {
+            isGeneralOutOfStock = p.generalStock <= 0;
+            if (isGeneralOutOfStock) {
+                stockIndicatorHtml = `<span class="stock-status-indicator out-of-stock">Agotado</span>`;
+            } else {
+                stockIndicatorHtml = `<span class="stock-status-indicator in-stock">Disponible (${p.generalStock} unidades)</span>`;
+            }
+        }
+
+        // Variations logic for clothing
+        let selectorsHtml = '';
+        if (p.type === 'ropa') {
+            // Unique sizes
+            const sizes = [...new Set(p.variations.map(v => v.size))];
+            
+            let sizePills = '';
+            sizes.forEach(sz => {
+                // Check if this size has stock in ANY color
+                const hasStock = p.variations.some(v => v.size === sz && v.stock > 0);
+                sizePills += `
+                    <button class="size-pill ${this.selectedSize === sz ? 'active' : ''} ${!hasStock ? 'disabled' : ''}" 
+                            onclick="app.selectDetailSize('${sz}')" ${!hasStock ? 'disabled' : ''}>
+                        ${sz}
+                    </button>`;
+            });
+
+            // Get available colors for selected size (or all if none selected)
+            let colors = [];
+            if (this.selectedSize) {
+                colors = p.variations.filter(v => v.size === this.selectedSize).map(v => v.color);
+            } else {
+                colors = [...new Set(p.variations.map(v => v.color))];
+            }
+
+            let colorPills = '';
+            colors.forEach(col => {
+                // Check if this specific combo (or general color if no size selected) is in stock
+                let hasStock = false;
+                if (this.selectedSize) {
+                    hasStock = p.variations.some(v => v.size === this.selectedSize && v.color === col && v.stock > 0);
+                } else {
+                    hasStock = p.variations.some(v => v.color === col && v.stock > 0);
+                }
+                
+                colorPills += `
+                    <button class="color-pill ${this.selectedColor === col ? 'active' : ''} ${!hasStock ? 'disabled' : ''}"
+                            onclick="app.selectDetailColor('${col}')" ${!hasStock ? 'disabled' : ''}>
+                        ${col}
+                    </button>`;
+            });
+
+            // Stock details for selection
+            let currentComboStock = -1;
+            if (this.selectedSize && this.selectedColor) {
+                const match = p.variations.find(v => v.size === this.selectedSize && v.color === this.selectedColor);
+                currentComboStock = match ? match.stock : 0;
+            }
+
+            if (this.selectedSize && this.selectedColor) {
+                if (currentComboStock <= 0) {
+                    stockIndicatorHtml = `<span class="stock-status-indicator out-of-stock">Esta combinación está Agotada</span>`;
+                } else {
+                    stockIndicatorHtml = `<span class="stock-status-indicator in-stock">Disponible (${currentComboStock} unidades)</span>`;
+                }
+            } else {
+                stockIndicatorHtml = `<span class="stock-status-indicator">Selecciona talla y color para ver existencias.</span>`;
+            }
+
+            selectorsHtml = `
+                <div class="detail-selectors">
+                    <div class="selector-group">
+                        <label>Talla</label>
+                        <div class="size-selector">${sizePills}</div>
+                    </div>
+                    <div class="selector-group">
+                        <label>Color</label>
+                        <div class="color-selector">${colorPills}</div>
+                    </div>
+                </div>`;
+        }
+
+        // Disable button check
+        let isBtnDisabled = false;
+        if (p.type === 'maquillaje' && isGeneralOutOfStock) {
+            isBtnDisabled = true;
+        } else if (p.type === 'ropa') {
+            if (!this.selectedSize || !this.selectedColor) {
+                isBtnDisabled = true;
+            } else {
+                const match = p.variations.find(v => v.size === this.selectedSize && v.color === this.selectedColor);
+                if (!match || match.stock <= 0) {
+                    isBtnDisabled = true;
+                }
+            }
+        }
+
+        content.innerHTML = `
+            <div class="detail-images-container">
+                <div class="main-detail-image">
+                    <img src="${currentMainImage}" id="detail-main-img-el">
+                </div>
+                <div class="thumbnail-images">${thumbsHtml}</div>
+            </div>
+            <div class="detail-info">
+                <span class="detail-category">${p.category}</span>
+                <h2 class="detail-title">${p.name}</h2>
+                <span class="detail-price">${this.formatPrice(p.price)}</span>
+                <p class="detail-description">${p.description}</p>
+                
+                ${selectorsHtml}
+                
+                <div style="margin-bottom: 20px;">
+                    ${stockIndicatorHtml}
+                </div>
+
+                <button class="gold-btn w-100" onclick="app.addItemToCart()" ${isBtnDisabled ? 'disabled' : ''}>
+                    <i class="fas fa-shopping-cart"></i> Agregar al Carrito
+                </button>
+            </div>
+        `;
+    }
+
+    setDetailImageIndex(idx) {
+        this.selectedDetailImageIndex = idx;
+        this.renderProductDetailsContent();
+    }
+
+    selectDetailSize(size) {
+        this.selectedSize = size;
+        // Reset color selection if it is no longer valid for the selected size
+        const p = this.selectedDetailProduct;
+        if (this.selectedColor) {
+            const isValid = p.variations.some(v => v.size === size && v.color === this.selectedColor && v.stock > 0);
+            if (!isValid) this.selectedColor = '';
+        }
+        this.renderProductDetailsContent();
+    }
+
+    selectDetailColor(color) {
+        this.selectedColor = color;
+        this.renderProductDetailsContent();
+    }
+
+    closeDetailModal() {
+        document.getElementById('product-detail-modal').classList.add('hidden');
+        this.selectedDetailProduct = null;
+    }
+
+    // Cart Operations
+    addItemToCart() {
+        const p = this.selectedDetailProduct;
+        if (!p) return;
+
+        let cartItem = {
+            productId: p.id,
+            name: p.name,
+            price: p.price,
+            image: p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop',
+            type: p.type,
+            quantity: 1
+        };
+
+        if (p.type === 'ropa') {
+            cartItem.size = this.selectedSize;
+            cartItem.color = this.selectedColor;
+        }
+
+        // Check if already in cart
+        const existingIdx = this.cart.findIndex(item => {
+            if (item.productId !== p.id) return false;
+            if (p.type === 'ropa') {
+                return item.size === this.selectedSize && item.color === this.selectedColor;
+            }
+            return true;
+        });
+
+        // Check stock availability
+        let availableStock = 0;
+        if (p.type === 'maquillaje') {
+            availableStock = p.generalStock;
+        } else {
+            const match = p.variations.find(v => v.size === this.selectedSize && v.color === this.selectedColor);
+            availableStock = match ? match.stock : 0;
+        }
+
+        const currentQtyInCart = existingIdx !== -1 ? this.cart[existingIdx].quantity : 0;
+        if (currentQtyInCart + 1 > availableStock) {
+            alert(`No puedes agregar más unidades. Solo quedan ${availableStock} disponibles en inventario.`);
+            return;
+        }
+
+        if (existingIdx !== -1) {
+            this.cart[existingIdx].quantity += 1;
+        } else {
+            this.cart.push(cartItem);
+        }
+
+        this.saveCartToStorage();
+        this.renderCart();
+        this.closeDetailModal();
+        this.toggleCart(true); // Open cart sidebar
+    }
+
+    toggleCart(forceOpen = false) {
+        const drawer = document.getElementById('cart-drawer');
+        const overlay = document.getElementById('drawer-overlay');
+        
+        if (forceOpen || !drawer.classList.contains('open')) {
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+        } else {
+            drawer.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+    }
+
+    renderCart() {
+        const itemsContainer = document.getElementById('cart-drawer-items');
+        const badgeCount = document.getElementById('cart-badge-count');
+        const totalPriceEl = document.getElementById('cart-total-price');
+
+        if (!itemsContainer) return;
+
+        itemsContainer.innerHTML = '';
+        
+        let totalCount = 0;
+        let totalPrice = 0;
+
+        if (this.cart.length === 0) {
+            itemsContainer.innerHTML = `
+                <div class="empty-cart-message">
+                    <i class="fas fa-shopping-cart"></i>
+                    <p>Tu carrito está vacío.</p>
+                </div>`;
+            badgeCount.innerText = '0';
+            totalPriceEl.innerText = this.formatPrice(0);
+            return;
+        }
+
+        this.cart.forEach((item, idx) => {
+            totalCount += item.quantity;
+            const subtotal = item.price * item.quantity;
+            totalPrice += subtotal;
+
+            const variationText = item.type === 'ropa' ? `Talla: ${item.size} | Color: ${item.color}` : 'Maquillaje';
+
+            const row = document.createElement('div');
+            row.className = 'cart-item';
+            row.innerHTML = `
+                <div class="cart-item-img">
+                    <img src="${item.image}">
+                </div>
+                <div class="cart-item-details">
+                    <h5 class="cart-item-name">${item.name}</h5>
+                    <p class="cart-item-variation">${variationText}</p>
+                    <span class="cart-item-price">${this.formatPrice(item.price)}</span>
+                    <div class="cart-item-qty">
+                        <button class="qty-btn" onclick="app.updateCartQty(${idx}, -1)"><i class="fas fa-minus"></i></button>
+                        <span class="qty-val">${item.quantity}</span>
+                        <button class="qty-btn" onclick="app.updateCartQty(${idx}, 1)"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <button class="remove-cart-item" onclick="app.removeFromCart(${idx})">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            itemsContainer.appendChild(row);
+        });
+
+        badgeCount.innerText = totalCount;
+        totalPriceEl.innerText = this.formatPrice(totalPrice);
+    }
+
+    updateCartQty(index, change) {
+        const item = this.cart[index];
+        if (!item) return;
+
+        const newQty = item.quantity + change;
+        if (newQty <= 0) {
+            this.removeFromCart(index);
+            return;
+        }
+
+        // Fetch original product to validate stock
+        const p = this.products.find(prod => prod.id === item.productId);
+        if (p) {
+            let availableStock = 0;
+            if (p.type === 'maquillaje') {
+                availableStock = p.generalStock;
+            } else {
+                const match = p.variations.find(v => v.size === item.size && v.color === item.color);
+                availableStock = match ? match.stock : 0;
+            }
+
+            if (newQty > availableStock) {
+                alert(`No puedes agregar más unidades. El stock máximo es ${availableStock}.`);
+                return;
+            }
+        }
+
+        item.quantity = newQty;
+        this.saveCartToStorage();
+        this.renderCart();
+    }
+
+    removeFromCart(index) {
+        this.cart.splice(index, 1);
+        this.saveCartToStorage();
+        this.renderCart();
+    }
+
+    async finalizePurchase() {
+        if (this.cart.length === 0) return;
+
+        let customerName = '';
+        let customerPhone = '';
+        const firstNameEl = document.getElementById('cart-customer-first-name');
+        const lastNameEl = document.getElementById('cart-customer-last-name');
+        const phoneEl = document.getElementById('cart-customer-phone');
+
+        if (this.isClient && this.currentUser) {
+            customerName = `${this.currentUser.firstName} ${this.currentUser.lastName}`;
+            customerPhone = this.currentUser.phone || '';
+        } else {
+            if (!firstNameEl || !firstNameEl.value.trim() || !lastNameEl || !lastNameEl.value.trim() || !phoneEl || !phoneEl.value.trim()) {
+                alert('Por favor, ingresa tu Nombre, Apellido y WhatsApp para realizar el pedido.');
+                if (firstNameEl && !firstNameEl.value.trim()) firstNameEl.focus();
+                else if (lastNameEl && !lastNameEl.value.trim()) lastNameEl.focus();
+                else if (phoneEl) phoneEl.focus();
+                return;
+            }
+            customerName = `${firstNameEl.value.trim()} ${lastNameEl.value.trim()}`;
+            customerPhone = phoneEl.value.trim();
+        }
+
+        try {
+            // Map cart items to OrderItems
+            const orderItems = this.cart.map(item => ({
+                productId: item.productId,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                size: item.size || null,
+                color: item.color || null,
+                type: item.type
+            }));
+
+            // Create Order in DB
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerName: customerName,
+                    customerPhone: customerPhone,
+                    items: orderItems
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                alert(errData.error || 'Ocurrió un error al registrar el pedido.');
+                return;
+            }
+
+            const newOrder = await res.json();
+
+            let total = 0;
+            this.cart.forEach(item => {
+                total += item.price * item.quantity;
+            });
+
+            const dateObj = new Date();
+            const currentDate = dateObj.toLocaleDateString('es-CO');
+            const currentTime = dateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            const phone = "3135794396";
+            
+            let orderText = `✨Confirmación de Compra✨\n\n`;
+            orderText += `*Cliente:* ${newOrder.customerName}\n`;
+            orderText += `*Pedido:* #${newOrder.orderNumber}\n`;
+            orderText += `*Fecha:* ${currentDate}\n`;
+            orderText += `*Hora:* ${currentTime}\n\n`;
+            
+            orderText += `*PRODUCTOS:*\n`;
+            this.cart.forEach(item => {
+                const subtotal = item.price * item.quantity;
+                const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
+                orderText += `- *${item.name}* x${item.quantity}${detail} — ${this.formatPrice(subtotal)}\n`;
+            });
+
+            orderText += `\n*TOTAL A PAGAR: ${this.formatPrice(total)}*\n\n`;
+            orderText += `Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacción.\n\n`;
+            orderText += `Agradecemos sinceramente tu confianza y preferencia. En J&N trabajamos para brindarte la mejor experiencia de compra.\n\n`;
+            orderText += `¡Gracias por elegirnos!💖`;
+
+            const waUrl = `https://wa.me/57${phone}?text=${encodeURIComponent(orderText)}`;
+
+            // Reset cart
+            this.cart = [];
+            if (firstNameEl) firstNameEl.value = '';
+            if (lastNameEl) lastNameEl.value = '';
+            if (phoneEl) phoneEl.value = '';
+            this.saveCartToStorage();
+            this.renderCart();
+            this.toggleCart(false);
+
+            // Redirect
+            window.open(waUrl, '_blank');
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión al procesar el pedido.');
+        }
+    }
+
+    // Filter by Category pills / tabs
+    filterCategory(category) {
+        this.activeCategory = category;
+        
+        // Update navigation UI links
+        const navs = ['todos', ...this.categories.map(c => this.slugify(c.name))];
+        const activeSlug = category === 'todos' ? 'todos' : this.slugify(category);
+
+        navs.forEach(n => {
+            const navEl = document.getElementById(`nav-${n}`);
+            const pillEl = document.getElementById(`pill-${n}`);
+            if (navEl) {
+                if (n === activeSlug) navEl.classList.add('active-nav');
+                else navEl.classList.remove('active-nav');
+            }
+            if (pillEl) {
+                if (n === activeSlug) pillEl.classList.add('active');
+                else pillEl.classList.remove('active');
+            }
+        });
+
+        // Hide banner if not on Home/Todos
+        const banner = document.getElementById('hero-banner');
+        if (banner) {
+            if (category === 'todos' && !this.isAdmin) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        // Switch out of admin section if filter is clicked
+        this.showCatalog();
+        this.fetchProducts();
+    }
+
+    handleSearch(event) {
+        this.searchQuery = event.target.value;
+        this.showCatalog();
+        this.fetchProducts();
+    }
+
+    showCatalog() {
+        document.getElementById('catalog-section').classList.remove('hidden');
+        if (this.activeCategory === 'todos') {
+            document.getElementById('hero-banner').classList.remove('hidden');
+        } else {
+            document.getElementById('hero-banner').classList.add('hidden');
+        }
+        document.getElementById('admin-section').classList.add('hidden');
+    }
+
+    // Admin/Client Navigation Router
+    handleAdminNav() {
+        if (this.isAdmin) {
+            // Admin already logged in: switch view to panel
+            document.getElementById('catalog-section').classList.add('hidden');
+            document.getElementById('hero-banner').classList.add('hidden');
+            document.getElementById('admin-section').classList.remove('hidden');
+            this.setAdminTab(this.currentAdminTab);
+        } else if (this.isClient) {
+            // Client logged in: click header button to logout
+            if (confirm(`Hola ${this.currentUser.firstName}, ¿deseas cerrar tu sesión?`)) {
+                this.handleLogout();
+            }
+        } else {
+            // Not logged in: open modal
+            document.getElementById('login-modal').classList.remove('hidden');
+            this.setAuthTab('login');
+        }
+    }
+
+    loadRememberedUser() {
+        const savedUsername = localStorage.getItem('jn_remember_username');
+        const isRemembered = localStorage.getItem('jn_remember_me') === 'true';
+        const userEl = document.getElementById('login-username');
+        const remEl = document.getElementById('login-remember-me');
+        if (userEl && savedUsername && isRemembered) {
+            userEl.value = savedUsername;
+        }
+        if (remEl) {
+            remEl.checked = isRemembered;
+        }
+    }
+
+    closeLoginModal() {
+        document.getElementById('login-modal').classList.add('hidden');
+        // Clear login inputs (preserve username if remember me is active)
+        const isRemembered = localStorage.getItem('jn_remember_me') === 'true';
+        const savedUsername = localStorage.getItem('jn_remember_username') || '';
+        const userEl = document.getElementById('login-username');
+        const loginPass = document.getElementById('login-password');
+        
+        if (userEl) {
+            userEl.value = isRemembered ? savedUsername : '';
+        }
+        if (loginPass) {
+            loginPass.value = '';
+            loginPass.type = 'password';
+        }
+        // Clear register inputs
+        document.getElementById('register-first-name').value = '';
+        document.getElementById('register-last-name').value = '';
+        document.getElementById('register-phone').value = '';
+        document.getElementById('register-username').value = '';
+        const regPass = document.getElementById('register-password');
+        if (regPass) {
+            regPass.value = '';
+            regPass.type = 'password';
+        }
+        // Reset eye icons
+        document.querySelectorAll('.toggle-password-btn i').forEach(icon => {
+            icon.className = 'fas fa-eye';
+        });
+        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+            btn.title = 'Mostrar contraseña';
+            btn.setAttribute('aria-label', 'Mostrar contraseña');
+        });
+    }
+
+    togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.className = 'fas fa-eye-slash';
+            }
+            btn.title = 'Ocultar contraseña';
+            btn.setAttribute('aria-label', 'Ocultar contraseña');
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.className = 'fas fa-eye';
+            }
+            btn.title = 'Mostrar contraseña';
+            btn.setAttribute('aria-label', 'Mostrar contraseña');
+        }
+    }
+
+    setAuthTab(tab) {
+        const loginBtn = document.getElementById('auth-tab-login');
+        const registerBtn = document.getElementById('auth-tab-register');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const subtitle = document.getElementById('auth-subtitle');
+
+        if (tab === 'login') {
+            this.loadRememberedUser();
+            if (loginBtn) {
+                loginBtn.style.color = 'var(--gold)';
+                loginBtn.style.borderBottom = '2px solid var(--gold)';
+            }
+            if (registerBtn) {
+                registerBtn.style.color = 'var(--gray-dark)';
+                registerBtn.style.borderBottom = 'none';
+            }
+            if (loginForm) loginForm.classList.remove('hidden');
+            if (registerForm) registerForm.classList.add('hidden');
+            if (subtitle) subtitle.innerText = 'ACCESO DE CLIENTES';
+        } else {
+            if (loginBtn) {
+                loginBtn.style.color = 'var(--gray-dark)';
+                loginBtn.style.borderBottom = 'none';
+            }
+            if (registerBtn) {
+                registerBtn.style.color = 'var(--gold)';
+                registerBtn.style.borderBottom = '2px solid var(--gold)';
+            }
+            if (loginForm) loginForm.classList.add('hidden');
+            if (registerForm) registerForm.classList.remove('hidden');
+            if (subtitle) subtitle.innerText = 'Crea tu Cuenta de Cliente';
+        }
+    }
+
+    async handleLogin(event) {
+        event.preventDefault();
+        const usernameEl = document.getElementById('login-username');
+        const passwordEl = document.getElementById('login-password');
+        const rememberEl = document.getElementById('login-remember-me');
+
+        const usernameVal = usernameEl.value.trim();
+        const passwordVal = passwordEl.value;
+
+        if (rememberEl && rememberEl.checked) {
+            localStorage.setItem('jn_remember_username', usernameVal);
+            localStorage.setItem('jn_remember_me', 'true');
+        } else {
+            localStorage.removeItem('jn_remember_username');
+            localStorage.removeItem('jn_remember_me');
+        }
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameVal, password: passwordVal })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.role === 'ADMIN') {
+                    this.isAdmin = true;
+                    this.isClient = false;
+                    this.currentUser = { firstName: data.firstName, lastName: data.lastName, phone: data.phone || '' };
+                    this.updateAdminHeaderUI();
+                    this.closeLoginModal();
+                    await this.fetchProducts();
+                    this.handleAdminNav();
+                } else {
+                    this.isAdmin = false;
+                    this.isClient = true;
+                    this.currentUser = { firstName: data.firstName, lastName: data.lastName, phone: data.phone || '' };
+                    this.prefillCustomerName(data.firstName, data.lastName, data.phone || '');
+                    this.updateAdminHeaderUI();
+                    this.closeLoginModal();
+                    alert(`¡Bienvenida, ${data.firstName}! Ya puedes realizar tus pedidos.`);
+                }
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Credenciales incorrectas.');
+            }
+        } catch (e) {
+            alert('Error de conexión al servidor.');
+        }
+    }
+
+    async handleRegister(event) {
+        event.preventDefault();
+        const firstName = document.getElementById('register-first-name').value.trim();
+        const lastName = document.getElementById('register-last-name').value.trim();
+        const phone = document.getElementById('register-phone').value.trim();
+        const username = document.getElementById('register-username').value.trim();
+        const password = document.getElementById('register-password').value.trim();
+
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, phone, username, password, role: 'CLIENT' })
+            });
+
+            if (res.ok) {
+                alert('¡Registro exitoso! Ya puedes iniciar sesión con tu usuario.');
+                document.getElementById('login-username').value = username;
+                this.setAuthTab('login');
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Error al registrar la cuenta.');
+            }
+        } catch (e) {
+            alert('Error de conexión.');
+        }
+    }
+
+    async handleLogout() {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            this.isAdmin = false;
+            this.isClient = false;
+            this.currentUser = null;
+            this.updateAdminHeaderUI();
+            this.showCatalog();
+            
+            const firstNameEl = document.getElementById('cart-customer-first-name');
+            const lastNameEl = document.getElementById('cart-customer-last-name');
+            const phoneEl = document.getElementById('cart-customer-phone');
+            if (firstNameEl) firstNameEl.value = '';
+            if (lastNameEl) lastNameEl.value = '';
+            if (phoneEl) phoneEl.value = '';
+
+            await this.fetchProducts();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    updateAdminHeaderUI() {
+        const guestFields = document.getElementById('cart-guest-fields');
+        const container = document.getElementById('auth-header-actions');
+
+        // Toggle guest name fields in cart drawer
+        if (guestFields) {
+            if (this.isClient) {
+                guestFields.classList.add('hidden');
+            } else {
+                guestFields.classList.remove('hidden');
+            }
+        }
+
+        if (!container) return;
+
+        if (this.isAdmin) {
+            container.innerHTML = `
+                <button class="admin-btn" onclick="app.handleAdminNav()" style="border-color: var(--gold); color: var(--gold);">
+                    <i class="fas fa-cog"></i> <span class="btn-text">Panel</span>
+                </button>
+                <button class="admin-btn" onclick="app.handleLogout()" style="border-color: var(--danger); color: var(--danger);">
+                    <i class="fas fa-sign-out-alt"></i> <span class="btn-text">Salir</span>
+                </button>`;
+        } else if (this.isClient) {
+            container.innerHTML = `
+                <button class="admin-btn" style="pointer-events: none; border-color: var(--gold); color: var(--gold);">
+                    <i class="fas fa-user"></i> <span class="btn-text">Hola, ${this.currentUser.firstName}</span>
+                </button>
+                <button class="admin-btn" onclick="app.handleLogout()" style="border-color: var(--danger); color: var(--danger);">
+                    <i class="fas fa-sign-out-alt"></i> <span class="btn-text">Salir</span>
+                </button>`;
+        } else {
+            container.innerHTML = `
+                <button class="admin-btn" id="header-login-btn" onclick="app.openLoginTab()">
+                    <i class="fas fa-sign-in-alt"></i> <span class="btn-text">Ingresar</span>
+                </button>
+                <button class="admin-btn" id="header-register-btn" onclick="app.openRegisterTab()">
+                    <i class="fas fa-user-plus"></i> <span class="btn-text">Registrarse</span>
+                </button>`;
+        }
+    }
+
+    openLoginTab() {
+        document.getElementById('login-modal').classList.remove('hidden');
+        this.setAuthTab('login');
+    }
+
+    openRegisterTab() {
+        document.getElementById('login-modal').classList.remove('hidden');
+        this.setAuthTab('register');
+    }
+
+    setAdminTab(tab) {
+        this.currentAdminTab = tab;
+        const tabs = ['dashboard', 'products', 'categories', 'orders', 'trash'];
+        
+        tabs.forEach(t => {
+            const tabBtn = document.getElementById(`tab-${t}`);
+            const contentEl = document.getElementById(`content-${t}`);
+            if (tabBtn) {
+                if (t === tab) tabBtn.classList.add('active');
+                else tabBtn.classList.remove('active');
+            }
+            if (contentEl) {
+                if (t === tab) contentEl.classList.remove('hidden');
+                else contentEl.classList.add('hidden');
+            }
+        });
+
+        if (tab === 'dashboard') {
+            this.renderAdminDashboard();
+        } else if (tab === 'products') {
+            this.renderAdminInventory();
+        } else if (tab === 'categories') {
+            this.renderCategoriesList();
+        } else if (tab === 'orders') {
+            this.fetchOrders();
+        } else if (tab === 'trash') {
+            this.fetchDeletedOrders();
+        }
+    }
+
+    // Admin Dashboard Render
+    async renderAdminDashboard() {
+        const makeupEl = document.getElementById('stat-makeup-count');
+        const clothingEl = document.getElementById('stat-clothing-count');
+        const alertEl = document.getElementById('stat-alert-count');
+        const alertsList = document.getElementById('alerts-list');
+        const alertsBg = document.getElementById('stat-alerts-bg');
+
+        // Sales Elements
+        const todaySalesEl = document.getElementById('stat-sales-today');
+        const weekSalesEl = document.getElementById('stat-sales-week');
+        const monthSalesEl = document.getElementById('stat-sales-month');
+        const totalSalesEl = document.getElementById('stat-sales-total');
+
+        if (!makeupEl) return;
+
+        try {
+            const statsRes = await fetch('/api/orders/stats');
+            if (statsRes.ok) {
+                const stats = await statsRes.json();
+                
+                makeupEl.innerText = stats.makeupCount;
+                clothingEl.innerText = stats.clothingCount;
+                alertEl.innerText = stats.criticalStockCount;
+                
+                if (todaySalesEl) todaySalesEl.innerText = this.formatPrice(stats.todayRevenue);
+                if (weekSalesEl) weekSalesEl.innerText = this.formatPrice(stats.weekRevenue);
+                if (monthSalesEl) monthSalesEl.innerText = this.formatPrice(stats.monthRevenue);
+                if (totalSalesEl) totalSalesEl.innerText = this.formatPrice(stats.totalRevenue);
+            }
+        } catch (e) {
+            console.error("Error al obtener estadísticas de ventas", e);
+            // Fallback for inventory
+            const makeupCount = this.products.filter(p => p.type === 'maquillaje').length;
+            const clothingCount = this.products.filter(p => p.type === 'ropa').length;
+            makeupEl.innerText = makeupCount;
+            clothingEl.innerText = clothingCount;
+        }
+
+        try {
+            // Get alerts list
+            const res = await fetch('/api/products/alerts');
+            const alerts = await res.json();
+            
+            if (alerts.length > 0) {
+                alertsBg.className = "stat-icon alert-bg danger-alert";
+                
+                alertsList.innerHTML = '';
+                alerts.forEach(alert => {
+                    const isSevere = alert.stock <= 0;
+                    const alertClass = isSevere ? '' : 'warning';
+                    const badgeClass = isSevere ? '' : 'warning';
+                    
+                    const item = document.createElement('div');
+                    item.className = `alert-item ${alertClass}`;
+                    item.innerHTML = `
+                        <div class="alert-item-info">
+                            <h5>${alert.productName}</h5>
+                            <p>${alert.detail} | Categoría: ${alert.category}</p>
+                        </div>
+                        <span class="alert-badge ${badgeClass}">${isSevere ? 'Agotado' : 'Bajo Stock'}</span>
+                    `;
+                    alertsList.appendChild(item);
+                });
+            } else {
+                alertsBg.className = "stat-icon alert-bg";
+                alertsList.innerHTML = `
+                    <div class="no-alerts-placeholder">
+                        <i class="fas fa-check-circle"></i>
+                        <p>¡Todo en orden! No hay productos con bajo inventario.</p>
+                    </div>`;
+            }
+
+        } catch (e) {
+            console.error("Error al obtener alertas de inventario", e);
+        }
+    }
+
+    // Admin Inventory List Table
+    renderAdminInventory() {
+        const tbody = document.getElementById('admin-products-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        this.products.forEach(p => {
+            const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
+            
+            let stockSummary = '';
+            if (p.type === 'maquillaje') {
+                stockSummary = `${p.generalStock} unds`;
+            } else {
+                // Sum all variation stocks
+                const sum = p.variations ? p.variations.reduce((acc, curr) => acc + curr.stock, 0) : 0;
+                stockSummary = `${sum} unds (${p.variations ? p.variations.length : 0} var)`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><img src="${mainImg}" alt="${p.name}"></td>
+                <td><strong>${p.name}</strong></td>
+                <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category}</span></td>
+                <td>${this.formatPrice(p.price)}</td>
+                <td>${stockSummary}</td>
+                <td>
+                    <div class="admin-table-actions">
+                        <button class="action-icon-btn edit" onclick="app.openProductModal('${p.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="action-icon-btn delete" onclick="app.handleDeleteProduct('${p.id}')"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Admin Categories Tab
+    renderCategoriesList() {
+        const catList = document.getElementById('admin-category-list');
+        if (!catList) return;
+
+        catList.innerHTML = '';
+
+        this.categories.forEach(c => {
+            const li = document.createElement('li');
+            li.className = 'category-list-item';
+            li.innerHTML = `
+                <span>${c.name}</span>
+                <button onclick="app.handleDeleteCategory('${c.id}')"><i class="fas fa-trash"></i> Eliminar</button>
+            `;
+            catList.appendChild(li);
+        });
+    }
+
+    populateCategorySelect() {
+        const select = document.getElementById('form-product-category');
+        if (!select) return;
+
+        select.innerHTML = '';
+        this.categories.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            opt.innerText = c.name;
+            select.appendChild(opt);
+        });
+    }
+
+    // Product Create / Edit Modal logic
+    openProductModal(productId = null) {
+        const form = document.getElementById('product-form');
+        form.reset();
+        
+        this.formUploadedImages = [];
+        document.getElementById('image-previews-container').innerHTML = '';
+        document.getElementById('form-variations-list').innerHTML = '';
+
+        this.populateCategorySelect();
+
+        if (productId) {
+            // Edit mode
+            const p = this.products.find(prod => prod.id === productId);
+            if (!p) return;
+
+            document.getElementById('product-form-title').innerText = 'Editar Producto';
+            document.getElementById('form-product-id').value = p.id;
+            document.getElementById('form-product-name').value = p.name;
+            document.getElementById('form-product-price').value = p.price;
+            document.getElementById('form-product-description').value = p.description;
+            document.getElementById('form-product-type').value = p.type;
+            document.getElementById('form-product-category').value = p.category;
+
+            // Load images
+            this.formUploadedImages = [...p.images];
+            this.renderFormImagePreviews();
+
+            // Handle type sections
+            this.handleProductTypeChange();
+
+            if (p.type === 'maquillaje') {
+                document.getElementById('form-product-stock').value = p.generalStock;
+            } else {
+                p.variations.forEach(v => {
+                    this.addVariationRow(v.size, v.color, v.stock);
+                });
+            }
+        } else {
+            // Add mode
+            document.getElementById('product-form-title').innerText = 'Agregar Nuevo Producto';
+            document.getElementById('form-product-id').value = '';
+            
+            // Set defaults
+            document.getElementById('form-product-type').value = 'maquillaje';
+            this.handleProductTypeChange();
+            document.getElementById('form-product-stock').value = 10;
+        }
+
+        document.getElementById('product-form-modal').classList.remove('hidden');
+    }
+
+    closeProductModal() {
+        document.getElementById('product-form-modal').classList.add('hidden');
+    }
+
+    handleProductTypeChange() {
+        const type = document.getElementById('form-product-type').value;
+        const makeupStock = document.getElementById('makeup-stock-container');
+        const clothingVars = document.getElementById('clothing-variations-container');
+
+        if (type === 'maquillaje') {
+            makeupStock.classList.remove('hidden');
+            clothingVars.classList.add('hidden');
+        } else {
+            makeupStock.classList.add('hidden');
+            clothingVars.classList.remove('hidden');
+            
+            // Ensure at least one variation row is present if empty
+            const list = document.getElementById('form-variations-list');
+            if (list.children.length === 0) {
+                this.addVariationRow('M', 'Negro', 10);
+            }
+        }
+    }
+
+    // Variations Manager
+    addVariationRow(size = '', color = '', stock = 5) {
+        const container = document.getElementById('form-variations-list');
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'variation-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Talla (e.g. S, M)" value="${size}" class="var-size" required>
+            <input type="text" placeholder="Color (e.g. Negro, Dorado)" value="${color}" class="var-color" required>
+            <input type="number" placeholder="Cantidad" value="${stock}" class="var-stock" min="0" required>
+            <button type="button" class="remove-variation-btn" onclick="this.parentElement.remove()"><i class="fas fa-trash-alt"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    // Image Uploads on Admin Form
+    async handleImageSelection(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+
+        try {
+            const res = await fetch('/api/products/upload-images', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                this.formUploadedImages.push(...data.urls);
+                this.renderFormImagePreviews();
+            } else {
+                alert('No se pudieron cargar algunas imágenes.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de red al subir imágenes.');
+        }
+
+        // Clear files input
+        event.target.value = '';
+    }
+
+    renderFormImagePreviews() {
+        const container = document.getElementById('image-previews-container');
+        if (!container) return;
+
+        container.innerHTML = '';
+        this.formUploadedImages.forEach((url, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'preview-thumb';
+            thumb.innerHTML = `
+                <img src="${url}">
+                <button type="button" class="remove-img-btn" onclick="app.removeFormImage(${idx})"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(thumb);
+        });
+    }
+
+    removeFormImage(index) {
+        this.formUploadedImages.splice(index, 1);
+        this.renderFormImagePreviews();
+    }
+
+    // CRUD Product Save
+    async handleSaveProduct(event) {
+        event.preventDefault();
+
+        const id = document.getElementById('form-product-id').value;
+        const name = document.getElementById('form-product-name').value;
+        const price = parseFloat(document.getElementById('form-product-price').value);
+        const description = document.getElementById('form-product-description').value;
+        const type = document.getElementById('form-product-type').value;
+        const category = document.getElementById('form-product-category').value;
+
+        // Construct object
+        let productObj = {
+            id: id ? id : null,
+            name: name,
+            price: price,
+            description: description,
+            type: type,
+            category: category,
+            images: this.formUploadedImages
+        };
+
+        if (type === 'maquillaje') {
+            productObj.generalStock = parseInt(document.getElementById('form-product-stock').value) || 0;
+            productObj.variations = [];
+        } else {
+            productObj.generalStock = 0;
+            // Parse variations list
+            const variationRows = document.querySelectorAll('.variation-row');
+            const variations = [];
+            variationRows.forEach(row => {
+                const sz = row.querySelector('.var-size').value;
+                const col = row.querySelector('.var-color').value;
+                const st = parseInt(row.querySelector('.var-stock').value) || 0;
+                if (sz && col) {
+                    variations.add ? variations.push({ size: sz, color: col, stock: st }) : variations.push({ size: sz, color: col, stock: st });
+                }
+            });
+            productObj.variations = variations;
+        }
+
+        try {
+            const res = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productObj)
+            });
+
+            if (res.ok) {
+                this.closeProductModal();
+                await this.fetchProducts();
+                alert('Producto guardado exitosamente');
+            } else {
+                const errData = await res.json();
+                alert(errData.error || 'Error al guardar el producto.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión al guardar.');
+        }
+    }
+
+    async handleDeleteProduct(productId) {
+        if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+
+        try {
+            const res = await fetch(`/api/products/${productId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                await this.fetchProducts();
+                alert('Producto eliminado.');
+            } else {
+                alert('No se pudo eliminar el producto.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Categories CRUD actions
+    async handleCreateCategory(event) {
+        event.preventDefault();
+        const input = document.getElementById('category-name');
+        const name = input.value;
+
+        try {
+            const res = await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+
+            if (res.ok) {
+                input.value = '';
+                await this.fetchCategories();
+                alert('Categoría creada exitosamente.');
+            } else {
+                alert('Error al crear categoría.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async handleDeleteCategory(catId) {
+        if (!confirm('¿Deseas eliminar esta categoría?')) return;
+
+        try {
+            const res = await fetch(`/api/categories/${catId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                await this.fetchCategories();
+                alert('Categoría eliminada.');
+            } else {
+                alert('No se pudo eliminar la categoría.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Formatter helpers
+    formatPrice(amount) {
+        return '$' + new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0 }).format(amount);
+    }
+
+    // Orders management methods
+    async fetchOrders() {
+        try {
+            const res = await fetch('/api/orders');
+            if (res.ok) {
+                this.orders = await res.json();
+                this.renderAdminOrders();
+            } else {
+                console.error("Error al obtener pedidos");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    renderAdminOrders() {
+        const tbody = document.getElementById('admin-orders-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (this.orders.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--gray-dark); padding: 30px;">
+                        No se han registrado pedidos en el sistema.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        this.orders.forEach(order => {
+            // Build items list
+            let itemsHtml = '<ul class="order-items-list">';
+            order.items.forEach(item => {
+                const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
+                itemsHtml += `<li>${item.name}${detail} <strong>x${item.quantity}</strong> - ${this.formatPrice(item.price * item.quantity)}</li>`;
+            });
+            itemsHtml += '</ul>';
+
+            // Status badge classes
+            const statusClass = order.status.toLowerCase();
+            const dateStr = new Date(order.createdAt).toLocaleString('es-CO');
+
+            // Action button logic: only show checkmark/confirm payment if PENDIENTE
+            let actionHtml = '';
+            if (order.status === 'PENDIENTE') {
+                actionHtml += `
+                    <button class="action-icon-btn edit" title="Confirmar Pago" onclick="app.confirmOrderPayment('${order.id}')">
+                        <i class="fas fa-check-circle" style="color: var(--success); font-size: 16px;"></i> Marcar Pago
+                    </button>`;
+            }
+            actionHtml += `
+                <button class="action-icon-btn edit" title="Mandar Recibo por WhatsApp" onclick="app.sendWaPaymentReceipt('${order.id}')" style="border-color: #25d366; color: #25d366;">
+                    <i class="fab fa-whatsapp"></i> Mandar Recibo
+                </button>`;
+            actionHtml += `
+                <button class="action-icon-btn edit" title="Imprimir Recibo PDF" onclick="app.printOrderInvoice('${order.id}')" style="border-color: var(--gold); color: var(--gold);">
+                    <i class="fas fa-print"></i> Recibo PDF
+                </button>`;
+            actionHtml += `
+                <button class="action-icon-btn delete" title="Mover a Papelera" onclick="app.deleteOrder('${order.id}')">
+                    <i class="fas fa-trash-alt"></i>
+                </button>`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${order.orderNumber}</strong></td>
+                <td><strong>${order.customerName}</strong></td>
+                <td>${dateStr}</td>
+                <td>${itemsHtml}</td>
+                <td><strong style="color: var(--gold);">${this.formatPrice(order.total)}</strong></td>
+                <td><span class="status-badge ${statusClass}">${order.status}</span></td>
+                <td>
+                    <div class="admin-table-actions">
+                        ${actionHtml}
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async confirmOrderPayment(orderId) {
+        if (!confirm('¿Confirmar que la compra ha sido realizada y pagada? Esto restará las cantidades correspondientes del inventario.')) return;
+
+        try {
+            const res = await fetch(`/api/orders/${orderId}/complete`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                alert('Pago confirmado e inventario descontado con éxito.');
+                await this.fetchProducts(); // Refresh products to update stocks in UI
+                await this.fetchOrders();    // Refresh orders list
+                await this.renderAdminDashboard(); // Refresh dashboard alerts/counts
+            } else {
+                const errData = await res.json();
+                alert(errData.error || 'Error al confirmar el pago.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión.');
+        }
+    }
+
+    async deleteOrder(orderId) {
+        if (!confirm('¿Estás seguro de que deseas mover este pedido a la papelera?')) return;
+
+        try {
+            const res = await fetch(`/api/orders/${orderId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert('Pedido movido a la papelera.');
+                await this.fetchOrders();
+                await this.renderAdminDashboard();
+            } else {
+                alert('Error al eliminar el pedido.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Trash / soft delete management methods
+    async fetchDeletedOrders() {
+        try {
+            const res = await fetch('/api/orders/deleted');
+            if (res.ok) {
+                this.deletedOrders = await res.json();
+                this.renderAdminTrash();
+            } else {
+                console.error("Error al obtener pedidos eliminados");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    renderAdminTrash() {
+        const tbody = document.getElementById('admin-trash-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (this.deletedOrders.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--gray-dark); padding: 30px;">
+                        La papelera está vacía.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        this.deletedOrders.forEach(order => {
+            let itemsHtml = '<ul class="order-items-list">';
+            order.items.forEach(item => {
+                const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
+                itemsHtml += `<li>${item.name}${detail} <strong>x${item.quantity}</strong> - ${this.formatPrice(item.price * item.quantity)}</li>`;
+            });
+            itemsHtml += '</ul>';
+
+            const dateStr = new Date(order.createdAt).toLocaleString('es-CO');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>#${order.orderNumber}</strong></td>
+                <td><strong>${order.customerName}</strong></td>
+                <td>${dateStr}</td>
+                <td>${itemsHtml}</td>
+                <td><strong style="color: var(--gold);">${this.formatPrice(order.total)}</strong></td>
+                <td>
+                    <div class="admin-table-actions">
+                        <button class="action-icon-btn edit" title="Restaurar Pedido" onclick="app.restoreOrder('${order.id}')">
+                            <i class="fas fa-trash-restore-alt" style="color: var(--success); font-size: 14px;"></i> Restaurar
+                        </button>
+                        <button class="action-icon-btn delete" title="Eliminar Permanentemente" onclick="app.permanentlyDeleteOrder('${order.id}')">
+                            <i class="fas fa-times-circle" style="color: var(--danger); font-size: 14px;"></i> Purgar
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async restoreOrder(orderId) {
+        try {
+            const res = await fetch(`/api/orders/${orderId}/restore`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                alert('Pedido restaurado con éxito.');
+                await this.fetchOrders();
+                await this.fetchDeletedOrders();
+                await this.renderAdminDashboard();
+            } else {
+                alert('Error al restaurar el pedido.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async permanentlyDeleteOrder(orderId) {
+        if (!confirm('¿Estás seguro de que deseas eliminar permanentemente este pedido de la base de datos? Esta acción no se puede deshacer.')) return;
+
+        try {
+            const res = await fetch(`/api/orders/${orderId}/permanent`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert('Pedido purgado permanentemente.');
+                await this.fetchDeletedOrders();
+                await this.renderAdminDashboard();
+            } else {
+                alert('Error al eliminar permanentemente.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    goHome() {
+        const searchInput = document.getElementById('global-search');
+        if (searchInput) searchInput.value = '';
+        this.searchQuery = '';
+        this.filterCategory('todos');
+    }
+
+    generateReceiptPDF(order, total, date, time) {
+        const printWindow = window.open('', '_blank');
+        
+        let itemsRows = '';
+        order.items.forEach(item => {
+            const detail = item.type === 'ropa' ? `Talla: ${item.size} | Color: ${item.color}` : 'Maquillaje';
+            itemsRows += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${detail}</td>
+                    <td>${item.quantity}</td>
+                    <td>${this.formatPrice(item.price)}</td>
+                    <td class="text-right">${this.formatPrice(item.price * item.quantity)}</td>
+                </tr>`;
+        });
+
+        const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Recibo de Pedido J&N #${order.orderNumber}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+            <style>
+                body {
+                    font-family: 'Montserrat', sans-serif;
+                    background-color: #fffafb;
+                    color: #1a1a1a;
+                    margin: 0;
+                    padding: 40px;
+                    display: flex;
+                    justify-content: center;
+                }
+                .invoice-card {
+                    background-color: #ffffff;
+                    width: 100%;
+                    max-width: 650px;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+                    border: 1px solid rgba(224, 155, 169, 0.3);
+                    padding: 40px;
+                    box-sizing: border-box;
+                    position: relative;
+                }
+                .invoice-card::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 6px;
+                    background: linear-gradient(90deg, #e09ba9 0%, #d4af37 100%);
+                    border-radius: 16px 16px 0 0;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                }
+                .logo {
+                    font-family: 'Playfair Display', serif;
+                    font-size: 38px;
+                    font-weight: 700;
+                    color: #1a1a1a;
+                    letter-spacing: 2px;
+                    margin: 0;
+                }
+
+                .subtitle {
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    color: #d4af37;
+                    letter-spacing: 4px;
+                    margin-top: 5px;
+                    font-weight: 600;
+                }
+                .title-receipt {
+                    text-align: center;
+                    font-family: 'Playfair Display', serif;
+                    font-size: 20px;
+                    color: #e09ba9;
+                    margin-top: 15px;
+                    margin-bottom: 25px;
+                    font-style: italic;
+                }
+                .details-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 30px;
+                    font-size: 13px;
+                    border-bottom: 1px solid #f1f1f1;
+                    padding-bottom: 20px;
+                }
+                .detail-item {
+                    line-height: 1.6;
+                }
+                .detail-item strong {
+                    color: #e09ba9;
+                }
+                .items-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                    margin-bottom: 30px;
+                }
+                .items-table th {
+                    border-bottom: 2px solid #e09ba9;
+                    padding: 10px 5px;
+                    text-align: left;
+                    color: #777;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    font-size: 11px;
+                }
+                .items-table td {
+                    border-bottom: 1px solid #f1f1f1;
+                    padding: 12px 5px;
+                    vertical-align: middle;
+                }
+                .text-right {
+                    text-align: right;
+                }
+                .total-row {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    margin-top: 20px;
+                    margin-bottom: 35px;
+                    border-top: 2px solid #f1f1f1;
+                    padding-top: 15px;
+                }
+                .total-label {
+                    font-size: 14px;
+                    font-weight: 600;
+                    margin-right: 15px;
+                }
+                .total-amount {
+                    font-family: 'Playfair Display', serif;
+                    font-size: 26px;
+                    font-weight: 700;
+                    color: #d4af37;
+                }
+                .footer {
+                    text-align: center;
+                    border-top: 1px solid #f9d5e3;
+                    padding-top: 25px;
+                    margin-top: 20px;
+                }
+                .footer p {
+                    margin: 5px 0;
+                    font-size: 11px;
+                    line-height: 1.6;
+                }
+                .footer .highlight {
+                    font-weight: 600;
+                    color: #e09ba9;
+                    font-size: 12px;
+                }
+                .footer .shop-name {
+                    font-family: 'Playfair Display', serif;
+                    font-size: 14px;
+                    color: #d4af37;
+                    margin-top: 10px;
+                    font-weight: 600;
+                }
+                @media print {
+                    body {
+                        background-color: #ffffff;
+                        padding: 0;
+                    }
+                    .invoice-card {
+                        box-shadow: none;
+                        border: none;
+                        padding: 20px;
+                        max-width: 100%;
+                    }
+                    .invoice-card::before {
+                        display: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-card">
+                <div class="header">
+                    <h1 class="logo">J&amp;N</h1>
+                    <div class="subtitle">Maquillaje & Moda</div>
+                </div>
+                
+                <div class="title-receipt">¡Gracias por tu Compra!</div>
+                
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <strong>Cliente:</strong> ${order.customerName}<br>
+                        <strong>N° Pedido:</strong> #${order.orderNumber}
+                    </div>
+                    <div class="detail-item text-right">
+                        <strong>Fecha:</strong> ${date}<br>
+                        <strong>Hora:</strong> ${time}
+                    </div>
+                </div>
+                
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Variación</th>
+                            <th>Cant.</th>
+                            <th>Precio Unit.</th>
+                            <th class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRows}
+                    </tbody>
+                </table>
+                
+                <div class="total-row">
+                    <span class="total-label">Total a pagar:</span>
+                    <span class="total-amount">${this.formatPrice(total)}</span>
+                </div>
+                
+                <div class="footer">
+                    <p class="highlight">💕 GRACIAS POR CONFIAR EN NOSOTROS 💕</p>
+                    <p class="highlight">✨ GRACIAS POR ELEGIRNOS COMO TU TIENDA FAVORITA ✨</p>
+                    <p class="shop-name">CON AGRADECIMIENTO J&N!! ❤️</p>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                }
+            </script>
+        </body>
+        </html>`;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    }
+
+    openSuccessWaLink() {
+        if (this.pendingWaUrl) {
+            window.open(this.pendingWaUrl, '_blank');
+        }
+    }
+
+    openSuccessPdf() {
+        if (this.pendingPdfArgs) {
+            this.generateReceiptPDF(
+                this.pendingPdfArgs.order,
+                this.pendingPdfArgs.total,
+                this.pendingPdfArgs.date,
+                this.pendingPdfArgs.time
+            );
+        }
+    }
+
+    closeSuccessModal() {
+        const modal = document.getElementById('success-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    printOrderInvoice(orderId) {
+        const order = this.orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const dateObj = new Date(order.createdAt);
+        const dateStr = dateObj.toLocaleDateString('es-CO');
+        const timeStr = dateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        this.generateReceiptPDF(order, order.total, dateStr, timeStr);
+    }
+
+    sendWaPaymentReceipt(orderId) {
+        const order = this.orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const dateObj = new Date(order.createdAt);
+        const dateStr = dateObj.toLocaleDateString('es-CO');
+        const timeStr = dateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        const receiptUrl = `${window.location.origin}/api/orders/receipt/${order.id}`;
+
+        // 2. Build the WhatsApp text receipt with Unicode escape sequences to guarantee emoji rendering
+        let receiptText = `\ud83e\uddfe *RECIBO DE PAGO J&N*\n\n`;
+        receiptText += `\u2705 *\u00a1Hola! Hemos verificado tu pago de forma exitosa.*\n\n`;
+        receiptText += `\ud83d\udce6 *N.\u00ba de Pedido:* #${order.orderNumber}\n`;
+        receiptText += `\ud83d\udc64 *Cliente:* ${order.customerName}\n`;
+        receiptText += `\ud83d\udcc5 *Fecha de Pago:* ${dateStr} - ${timeStr}\n\n`;
+
+        receiptText += `\ud83d\udecd\ufe0f *DETALLE DE COMPRA*\n`;
+        order.items.forEach(item => {
+            const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
+            receiptText += `\u2022 *${item.name}* x${item.quantity}${detail} \u2014 ${this.formatPrice(item.price * item.quantity)}\n`;
+        });
+
+        receiptText += `\n\ud83d\udcb0 *TOTAL PAGADO: ${this.formatPrice(order.total)}*\n\n`;
+        receiptText += `\ud83d\ude9a *TU PEDIDO YA ESTA SIENDO PREPARADO*\n\n`;
+        receiptText += `\ud83d\udcc4 *Descarga tu recibo en PDF:*\n${receiptUrl}\n\n`;
+        receiptText += `\ud83d\udc96 *Gracias por confiar en J&N.*\n`;
+        receiptText += `\u2728 *Gracias por elegirnos como tu tienda favorita.*`;
+
+        // Strip non-digits from phone number
+        const cleanPhone = order.customerPhone.replace(/\D/g, '');
+        const waUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(receiptText)}`;
+        window.open(waUrl, '_blank');
+    }
+}
+
+// Global hook
+const app = new JNStore();
+document.addEventListener('DOMContentLoaded', () => app.init());
