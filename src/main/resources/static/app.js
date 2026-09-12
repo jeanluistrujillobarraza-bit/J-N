@@ -781,8 +781,32 @@ class JNStore {
         }
     }
 
+    showAuthError(formType, message) {
+        const errorEl = document.getElementById(`${formType}-error-msg`);
+        if (errorEl) {
+            errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>${message}</span>`;
+            errorEl.classList.remove('hidden');
+        } else {
+            alert(message);
+        }
+    }
+
+    clearAuthErrors() {
+        const loginErr = document.getElementById('login-error-msg');
+        const regErr = document.getElementById('register-error-msg');
+        if (loginErr) {
+            loginErr.innerHTML = '';
+            loginErr.classList.add('hidden');
+        }
+        if (regErr) {
+            regErr.innerHTML = '';
+            regErr.classList.add('hidden');
+        }
+    }
+
     closeLoginModal() {
         document.getElementById('login-modal').classList.add('hidden');
+        this.clearAuthErrors();
         // Clear login inputs (preserve username if remember me is active)
         const isRemembered = localStorage.getItem('jn_remember_me') === 'true';
         const savedUsername = localStorage.getItem('jn_remember_username') || '';
@@ -838,6 +862,7 @@ class JNStore {
     }
 
     setAuthTab(tab) {
+        this.clearAuthErrors();
         const loginBtn = document.getElementById('auth-tab-login');
         const registerBtn = document.getElementById('auth-tab-register');
         const loginForm = document.getElementById('login-form');
@@ -874,9 +899,12 @@ class JNStore {
 
     async handleLogin(event) {
         event.preventDefault();
+        this.clearAuthErrors();
+
         const usernameEl = document.getElementById('login-username');
         const passwordEl = document.getElementById('login-password');
         const rememberEl = document.getElementById('login-remember-me');
+        const submitBtn = document.getElementById('login-submit-btn');
 
         const usernameVal = usernameEl.value.trim();
         const passwordVal = passwordEl.value;
@@ -887,6 +915,12 @@ class JNStore {
         } else {
             localStorage.removeItem('jn_remember_username');
             localStorage.removeItem('jn_remember_me');
+        }
+
+        const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Iniciar Sesión';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
         }
 
         try {
@@ -917,20 +951,35 @@ class JNStore {
                 }
             } else {
                 const err = await res.json();
-                alert(err.error || 'Credenciales incorrectas.');
+                const msg = err.error || 'Usuario no existente';
+                this.showAuthError('login', msg);
             }
         } catch (e) {
-            alert('Error de conexión al servidor.');
+            this.showAuthError('login', 'Error de conexión al servidor.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
         }
     }
 
     async handleRegister(event) {
         event.preventDefault();
+        this.clearAuthErrors();
+
         const firstName = document.getElementById('register-first-name').value.trim();
         const lastName = document.getElementById('register-last-name').value.trim();
         const phone = document.getElementById('register-phone').value.trim();
         const username = document.getElementById('register-username').value.trim();
-        const password = document.getElementById('register-password').value.trim();
+        const password = document.getElementById('register-password').value;
+        const submitBtn = document.getElementById('register-submit-btn');
+
+        const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Crear Cuenta';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando cuenta...';
+        }
 
         try {
             const res = await fetch('/api/auth/register', {
@@ -945,10 +994,16 @@ class JNStore {
                 this.setAuthTab('login');
             } else {
                 const err = await res.json();
-                alert(err.error || 'Error al registrar la cuenta.');
+                const msg = err.error || 'Error al registrar la cuenta.';
+                this.showAuthError('register', msg);
             }
         } catch (e) {
-            alert('Error de conexión.');
+            this.showAuthError('register', 'Error de conexión.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
         }
     }
 
