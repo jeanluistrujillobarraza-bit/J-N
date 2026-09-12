@@ -659,25 +659,31 @@ class JNStore {
 
             const phone = "3135794396";
             
-            let orderText = `✨Confirmación de Compra✨\n\n`;
+            const eSparkles = String.fromCodePoint(0x2728);
+            const eHeart = String.fromCodePoint(0x1F496);
+            const eBag = String.fromCodePoint(0x1F6CD, 0xFE0F);
+            const eMoney = String.fromCodePoint(0x1F4B0);
+            const eDoc = String.fromCodePoint(0x1F4C4);
+            
+            let orderText = `${eSparkles} *Confirmación de Compra - J&N* ${eSparkles}\n\n`;
             orderText += `*Cliente:* ${newOrder.customerName}\n`;
             orderText += `*Pedido:* #${newOrder.orderNumber}\n`;
             orderText += `*Fecha:* ${currentDate}\n`;
             orderText += `*Hora:* ${currentTime}\n\n`;
             
-            orderText += `*PRODUCTOS:*\n`;
+            orderText += `${eBag} *PRODUCTOS:*\n`;
             this.cart.forEach(item => {
                 const subtotal = item.price * item.quantity;
                 const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
-                orderText += `- *${item.name}* x${item.quantity}${detail} — ${this.formatPrice(subtotal)}\n`;
+                orderText += `• *${item.name}* x${item.quantity}${detail} — ${this.formatPrice(subtotal)}\n`;
             });
 
-            orderText += `\n*TOTAL A PAGAR: ${this.formatPrice(total)}*\n\n`;
+            orderText += `\n${eMoney} *TOTAL A PAGAR: ${this.formatPrice(total)}*\n\n`;
             orderText += `Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacción.\n\n`;
             orderText += `Agradecemos sinceramente tu confianza y preferencia. En J&N trabajamos para brindarte la mejor experiencia de compra.\n\n`;
-            orderText += `¡Gracias por elegirnos!💖`;
+            orderText += `¡Gracias por elegirnos! ${eHeart}`;
 
-            const waUrl = `https://wa.me/57${phone}?text=${encodeURIComponent(orderText)}`;
+            const waUrl = `https://api.whatsapp.com/send?phone=57${phone}&text=${encodeURIComponent(orderText)}`;
 
             // Reset cart
             this.cart = [];
@@ -2127,28 +2133,39 @@ class JNStore {
 
         const receiptUrl = `${window.location.origin}/api/orders/receipt/${order.id}`;
 
-        // 2. Build the WhatsApp text receipt with Unicode escape sequences to guarantee emoji rendering
-        let receiptText = `\ud83e\uddfe *RECIBO DE PAGO J&N*\n\n`;
-        receiptText += `\u2705 *\u00a1Hola! Hemos verificado tu pago de forma exitosa.*\n\n`;
-        receiptText += `\ud83d\udce6 *N.\u00ba de Pedido:* #${order.orderNumber}\n`;
-        receiptText += `\ud83d\udc64 *Cliente:* ${order.customerName}\n`;
-        receiptText += `\ud83d\udcc5 *Fecha de Pago:* ${dateStr} - ${timeStr}\n\n`;
+        const eReceipt = String.fromCodePoint(0x1F9FE);
+        const eCheck = String.fromCodePoint(0x2705);
+        const ePackage = String.fromCodePoint(0x1F4E6);
+        const eUser = String.fromCodePoint(0x1F464);
+        const eCalendar = String.fromCodePoint(0x1F4C5);
+        const eBag = String.fromCodePoint(0x1F6CD, 0xFE0F);
+        const eMoney = String.fromCodePoint(0x1F4B0);
+        const eTruck = String.fromCodePoint(0x1F69A);
+        const eDoc = String.fromCodePoint(0x1F4C4);
+        const eHeart = String.fromCodePoint(0x1F496);
+        const eSparkles = String.fromCodePoint(0x2728);
 
-        receiptText += `\ud83d\udecd\ufe0f *DETALLE DE COMPRA*\n`;
+        let receiptText = `${eReceipt} *RECIBO DE PAGO J&N*\n\n`;
+        receiptText += `${eCheck} *¡Hola! Hemos verificado tu pago de forma exitosa.*\n\n`;
+        receiptText += `${ePackage} *N.° de Pedido:* #${order.orderNumber}\n`;
+        receiptText += `${eUser} *Cliente:* ${order.customerName}\n`;
+        receiptText += `${eCalendar} *Fecha de Pago:* ${dateStr} - ${timeStr}\n\n`;
+
+        receiptText += `${eBag} *DETALLE DE COMPRA*\n`;
         order.items.forEach(item => {
             const detail = item.type === 'ropa' ? ` (Talla: ${item.size} | Color: ${item.color})` : '';
-            receiptText += `\u2022 *${item.name}* x${item.quantity}${detail} \u2014 ${this.formatPrice(item.price * item.quantity)}\n`;
+            receiptText += `• *${item.name}* x${item.quantity}${detail} — ${this.formatPrice(item.price * item.quantity)}\n`;
         });
 
-        receiptText += `\n\ud83d\udcb0 *TOTAL PAGADO: ${this.formatPrice(order.total)}*\n\n`;
-        receiptText += `\ud83d\ude9a *TU PEDIDO YA ESTA SIENDO PREPARADO*\n\n`;
-        receiptText += `\ud83d\udcc4 *Descarga tu recibo en PDF:*\n${receiptUrl}\n\n`;
-        receiptText += `\ud83d\udc96 *Gracias por confiar en J&N.*\n`;
-        receiptText += `\u2728 *Gracias por elegirnos como tu tienda favorita.*`;
+        receiptText += `\n${eMoney} *TOTAL PAGADO: ${this.formatPrice(order.total)}*\n\n`;
+        receiptText += `${eTruck} *TU PEDIDO YA ESTÁ SIENDO PREPARADO*\n\n`;
+        receiptText += `${eDoc} *Descarga tu recibo en PDF:*\n${receiptUrl}\n\n`;
+        receiptText += `${eHeart} *Gracias por confiar en J&N.*\n`;
+        receiptText += `${eSparkles} *Gracias por elegirnos como tu tienda favorita.*`;
 
         // Strip non-digits from phone number
-        const cleanPhone = order.customerPhone.replace(/\D/g, '');
-        const waUrl = `https://wa.me/57${cleanPhone}?text=${encodeURIComponent(receiptText)}`;
+        const cleanPhone = (order.customerPhone || '').replace(/\D/g, '');
+        const waUrl = `https://api.whatsapp.com/send?phone=57${cleanPhone}&text=${encodeURIComponent(receiptText)}`;
         window.open(waUrl, '_blank');
     }
 }
