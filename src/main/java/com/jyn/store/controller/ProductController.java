@@ -75,10 +75,16 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProduct(@PathVariable String id, HttpSession session) {
         if (isNotAdmin(session)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Tu sesión de administrador ha expirado. Por favor, inicia sesión nuevamente."));
         }
-        productService.deleteProduct(id);
-        return ResponseEntity.ok(Map.of("message", "Producto eliminado exitosamente"));
+        try {
+            productService.deleteProduct(id);
+            return ResponseEntity.ok(Map.of("message", "Producto eliminado exitosamente"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al eliminar el producto: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/alerts")

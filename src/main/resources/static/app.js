@@ -1538,12 +1538,17 @@ class JNStore {
 
             if (res.ok) {
                 await this.fetchProducts();
-                alert('Producto eliminado.');
+                alert('¡Producto eliminado exitosamente!');
+            } else if (res.status === 401) {
+                alert('Tu sesión de administrador ha expirado tras el reinicio del servidor. Por favor, vuelve a iniciar sesión con tu usuario y contraseña.');
+                this.openLoginTab();
             } else {
-                alert('No se pudo eliminar el producto.');
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'No se pudo eliminar el producto.');
             }
         } catch (e) {
             console.error(e);
+            alert('Error de conexión al eliminar el producto.');
         }
     }
 
