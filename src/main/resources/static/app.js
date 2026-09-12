@@ -109,11 +109,43 @@ class JNStore {
         // Render Header Nav Links
         if (headerNav) {
             let navHtml = `<a href="#" onclick="app.filterCategory('todos'); return false;" class="${this.activeCategory === 'todos' ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
-            this.categories.forEach(c => {
+            
+            // Limit visible categories on desktop header to first 4, rest in "Ver Más" dropdown
+            const maxVisible = 4;
+            const visibleCats = this.categories.slice(0, maxVisible);
+            const moreCats = this.categories.slice(maxVisible);
+
+            visibleCats.forEach(c => {
                 const slug = this.slugify(c.name);
                 const isActive = this.activeCategory === c.name.toLowerCase();
                 navHtml += `<a href="#" onclick="app.filterCategory('${c.name.toLowerCase()}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${c.name}</a>`;
             });
+
+            if (moreCats.length > 0) {
+                const activeMoreCat = moreCats.find(c => this.activeCategory === c.name.toLowerCase());
+                const isAnyMoreActive = !!activeMoreCat;
+                const dropdownLabel = activeMoreCat ? activeMoreCat.name : 'Ver Más';
+
+                navHtml += `
+                    <div class="nav-dropdown" id="nav-more-dropdown">
+                        <a href="#" class="nav-dropdown-btn ${isAnyMoreActive ? 'active-nav' : ''}" onclick="app.toggleMoreDropdown(event); return false;">
+                            ${dropdownLabel} <i class="fas fa-chevron-down"></i>
+                        </a>
+                        <div class="nav-dropdown-menu" id="nav-dropdown-menu">
+                `;
+
+                moreCats.forEach(c => {
+                    const slug = this.slugify(c.name);
+                    const isActive = this.activeCategory === c.name.toLowerCase();
+                    navHtml += `<a href="#" onclick="app.filterCategory('${c.name.toLowerCase()}'); app.closeMoreDropdown(); return false;" class="${isActive ? 'active-dropdown-item' : ''}" id="nav-${slug}">${c.name}</a>`;
+                });
+
+                navHtml += `
+                        </div>
+                    </div>
+                `;
+            }
+
             headerNav.innerHTML = navHtml;
         }
 
@@ -127,6 +159,17 @@ class JNStore {
             });
             filterPills.innerHTML = pillsHtml;
         }
+    }
+
+    toggleMoreDropdown(event) {
+        if (event) event.preventDefault();
+        const dd = document.getElementById('nav-more-dropdown');
+        if (dd) dd.classList.toggle('open');
+    }
+
+    closeMoreDropdown() {
+        const dd = document.getElementById('nav-more-dropdown');
+        if (dd) dd.classList.remove('open');
     }
 
     // Fetch categories
@@ -733,7 +776,8 @@ class JNStore {
             } else {
                 banner.classList.add('hidden');
             }
-        }
+        // Re-render navigation categories to update dropdown selection label
+        this.renderNavigationCategories();
 
         // Switch out of admin section if filter is clicked
         this.showCatalog();
