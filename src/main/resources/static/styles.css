@@ -488,7 +488,9 @@ nav.nav-links a.active-nav {
 
 .filter-pills {
     display: flex;
+    align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .pill {
@@ -514,6 +516,11 @@ nav.nav-links a.active-nav {
     box-shadow: 0 4px 10px rgba(224, 155, 169, 0.3);
 }
 
+.filter-more-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
 .pill.pill-toggle-more {
     background-color: rgba(212, 175, 55, 0.08);
     border: 1px dashed var(--gold);
@@ -536,6 +543,57 @@ nav.nav-links a.active-nav {
     background-color: rgba(224, 155, 169, 0.15);
     border: 1px solid var(--accent-pink);
     color: var(--accent-pink);
+}
+
+.filter-more-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #ffffff;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 190px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 60;
+}
+
+.filter-more-dropdown.show {
+    display: flex;
+}
+
+.dropdown-pill-item {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--dark-neutral);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.dropdown-pill-item:hover {
+    background-color: rgba(212, 175, 55, 0.1);
+    color: var(--gold);
+}
+
+.dropdown-pill-item.active {
+    background-color: var(--accent-pink);
+    color: var(--white);
+    font-weight: 600;
 }
 
 /* Products Grid & Cards */

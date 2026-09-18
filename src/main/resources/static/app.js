@@ -44,17 +44,31 @@ class JNStore {
         // Seeding default categories list in forms
         this.populateCategorySelect();
 
-        // Close dropdown when clicking or touching outside
+        // Close dropdowns when clicking or touching outside
         document.addEventListener('click', (e) => {
             const dropdown = document.getElementById('nav-more-dropdown');
             if (dropdown && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('open');
+            }
+            const filterWrapper = document.getElementById('filter-more-dropdown-wrapper');
+            if (filterWrapper && !filterWrapper.contains(e.target)) {
+                if (this.isPillsExpanded) {
+                    this.isPillsExpanded = false;
+                    this.renderNavigationCategories();
+                }
             }
         });
         document.addEventListener('touchstart', (e) => {
             const dropdown = document.getElementById('nav-more-dropdown');
             if (dropdown && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('open');
+            }
+            const filterWrapper = document.getElementById('filter-more-dropdown-wrapper');
+            if (filterWrapper && !filterWrapper.contains(e.target)) {
+                if (this.isPillsExpanded) {
+                    this.isPillsExpanded = false;
+                    this.renderNavigationCategories();
+                }
             }
         }, { passive: true });
     }
@@ -204,9 +218,10 @@ class JNStore {
             const isTodosSubActive = isCurrentSubActive('todos');
             let pillsHtml = `<button class="pill ${isTodosSubActive ? 'active' : ''}" onclick="app.filterSubCategory('todos')" id="pill-todos">Todos</button>`;
             
-            const maxVisiblePills = 5;
+            const maxVisiblePills = 3;
             const hasMore = subCats.length > maxVisiblePills;
-            const visiblePills = (hasMore && !this.isPillsExpanded) ? subCats.slice(0, maxVisiblePills) : subCats;
+            const visiblePills = subCats.slice(0, maxVisiblePills);
+            const morePills = subCats.slice(maxVisiblePills);
 
             visiblePills.forEach(c => {
                 const slug = this.slugify(c.name);
@@ -216,19 +231,51 @@ class JNStore {
             });
 
             if (hasMore) {
-                if (!this.isPillsExpanded) {
-                    pillsHtml += `<button class="pill pill-toggle-more" onclick="app.togglePillsExpanded()" id="pill-toggle-more">Ver Más <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i></button>`;
-                } else {
-                    pillsHtml += `<button class="pill pill-toggle-more active-toggle" onclick="app.togglePillsExpanded()" id="pill-toggle-more">Ver Menos <i class="fas fa-chevron-up" style="font-size: 10px; margin-left: 4px;"></i></button>`;
-                }
+                const activeMore = morePills.find(c => isCurrentSubActive(c.name));
+                const isAnyMoreActive = !!activeMore;
+                const toggleLabel = activeMore ? activeMore.name : 'Ver Más';
+
+                pillsHtml += `
+                    <div class="filter-more-dropdown-wrapper" id="filter-more-dropdown-wrapper">
+                        <button class="pill pill-toggle-more ${this.isPillsExpanded ? 'active-toggle' : ''} ${isAnyMoreActive ? 'active' : ''}" onclick="app.togglePillsExpanded(event)" id="pill-toggle-more">
+                            ${toggleLabel} <i class="fas ${this.isPillsExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 10px; margin-left: 4px;"></i>
+                        </button>
+                        <div class="filter-more-dropdown ${this.isPillsExpanded ? 'show' : ''}" id="filter-more-dropdown-menu">
+                `;
+
+                morePills.forEach(c => {
+                    const slug = this.slugify(c.name);
+                    const isActive = isCurrentSubActive(c.name);
+                    const safeName = (c.name || '').replace(/'/g, "\\'");
+                    pillsHtml += `
+                        <button type="button" class="dropdown-pill-item ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}'); app.closePillsExpanded();" id="pill-drop-${slug}">
+                            <span>${c.name}</span>
+                            ${isActive ? '<i class="fas fa-check" style="font-size: 10px; color: var(--white);"></i>' : ''}
+                        </button>
+                    `;
+                });
+
+                pillsHtml += `
+                        </div>
+                    </div>
+                `;
             }
 
             filterPills.innerHTML = pillsHtml;
         }
     }
 
-    togglePillsExpanded() {
+    togglePillsExpanded(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         this.isPillsExpanded = !this.isPillsExpanded;
+        this.renderNavigationCategories();
+    }
+
+    closePillsExpanded() {
+        this.isPillsExpanded = false;
         this.renderNavigationCategories();
     }
 
