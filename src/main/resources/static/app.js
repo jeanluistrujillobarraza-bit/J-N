@@ -21,8 +21,10 @@ class JNStore {
         this.deletedProducts = [];
         this.trashSubTab = 'products';
         
-        // Temporary Form state
-        this.formUploadedImages = [];
+        // Product & Catalog Cache
+        this.allProducts = [];
+        this.searchDebounceTimer = null;
+        this.isLoadingCatalog = false;
         
         // Detail Modal State
         this.selectedDetailProduct = null;
@@ -317,38 +319,120 @@ class JNStore {
         }
     }
 
-    // Fetch products
-    async fetchProducts() {
+    // Fetch all products into in-memory cache and render instantly
+    async fetchProducts(force = false) {
         try {
-            let url = '/api/products';
-            const params = [];
-            if (this.activeMainCategory && this.activeMainCategory !== 'todos') {
-                params.push(`mainCategory=${encodeURIComponent(this.activeMainCategory)}`);
-            }
-            if (this.activeCategory && this.activeCategory !== 'todos') {
-                params.push(`category=${encodeURIComponent(this.activeCategory)}`);
-            }
-            if (this.searchQuery) {
-                params.push(`query=${encodeURIComponent(this.searchQuery)}`);
-            }
-            if (params.length > 0) {
-                url += '?' + params.join('&');
+            // If already loaded and not forced, instantly apply filter without hitting network
+            if (!force && this.allProducts && this.allProducts.length > 0) {
+                this.applyFiltersAndRender();
+                return;
             }
 
-            const res = await fetch(url);
-            this.products = await res.json();
-            
-            if (this.isAdmin) {
-                this.renderAdminInventory();
-                this.renderAdminDashboard();
+            if (!this.allProducts || this.allProducts.length === 0) {
+                this.isLoadingCatalog = true;
+                this.renderProductsSkeleton();
             }
-            this.renderProducts();
+
+            const res = await fetch('/api/products');
+            if (res.ok) {
+                this.allProducts = await res.json();
+                this.isLoadingCatalog = false;
+                this.applyFiltersAndRender();
+                if (this.isAdmin) {
+                    this.renderAdminInventory();
+                    this.renderAdminDashboard();
+                }
+            }
         } catch (e) {
             console.error("Error al obtener productos", e);
+            this.isLoadingCatalog = false;
+            this.renderProducts();
         }
     }
 
-    // Render client catalog
+    // Instant local filtering (0ms latency, runs in memory)
+    applyFiltersAndRender() {
+        if (!this.allProducts || this.allProducts.length === 0) {
+            this.products = [];
+            this.renderProducts();
+            return;
+        }
+
+        const hasMainCategory = this.activeMainCategory && this.activeMainCategory.toLowerCase() !== 'todos';
+        const hasCategory = this.activeCategory && this.activeCategory.toLowerCase() !== 'todos';
+        const q = (this.searchQuery || '').trim().toLowerCase();
+
+        // Build list of matching category names for main category
+        let matchingSubCatNames = [];
+        if (hasMainCategory) {
+            const mainLower = this.activeMainCategory.toLowerCase();
+            matchingSubCatNames = this.categories
+                .filter(c => (c.parentCategory || 'Maquillaje').toLowerCase() === mainLower || (c.name || '').toLowerCase() === mainLower)
+                .map(c => (c.name || '').toLowerCase());
+            matchingSubCatNames.push(mainLower);
+        }
+
+        const filtered = this.allProducts.filter(p => {
+            const pCat = (p.category || '').toLowerCase();
+            const pType = (p.type || '').toLowerCase();
+
+            // 1. Subcategory filter
+            if (hasCategory) {
+                const catLower = this.activeCategory.toLowerCase();
+                if (pCat !== catLower && pType !== catLower) {
+                    return false;
+                }
+            }
+
+            // 2. Main category (department) filter
+            if (hasMainCategory && !hasCategory) {
+                const mainLower = this.activeMainCategory.toLowerCase();
+                const matchesMain = pType === mainLower || matchingSubCatNames.includes(pCat) || pCat === mainLower;
+                if (!matchesMain) {
+                    return false;
+                }
+            }
+
+            // 3. Search query
+            if (q) {
+                const nameMatch = (p.name || '').toLowerCase().includes(q);
+                const descMatch = (p.description || '').toLowerCase().includes(q);
+                const catMatch = pCat.includes(q) || pType.includes(q);
+                if (!nameMatch && !descMatch && !catMatch) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        this.products = filtered;
+        this.renderProducts();
+        if (this.isAdmin) {
+            this.renderAdminInventory();
+        }
+    }
+
+    // Skeleton loader while initial catalog request is in flight
+    renderProductsSkeleton() {
+        const grid = document.getElementById('products-grid');
+        if (!grid) return;
+        
+        let skeletonHtml = '';
+        for (let i = 0; i < 6; i++) {
+            skeletonHtml += `
+                <div class="product-card skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-text skeleton-title"></div>
+                    <div class="skeleton-text skeleton-sub"></div>
+                    <div class="skeleton-text skeleton-price"></div>
+                </div>
+            `;
+        }
+        grid.innerHTML = skeletonHtml;
+    }
+
+    // Render client catalog with hardware acceleration & lazy loading
     renderProducts() {
         const grid = document.getElementById('products-grid');
         if (!grid) return;
@@ -363,6 +447,8 @@ class JNStore {
                 </div>`;
             return;
         }
+
+        const fragment = document.createDocumentFragment();
 
         this.products.forEach(p => {
             const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
@@ -397,11 +483,11 @@ class JNStore {
             }
 
             const card = document.createElement('div');
-            card.className = 'product-card';
+            card.className = 'product-card product-card-animate';
             card.innerHTML = `
                 <span class="product-card-badge ${p.type}">${p.type}</span>
                 <div class="product-card-image" onclick="app.openProductDetails('${p.id}')">
-                    <img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';">
+                    <img src="${mainImg}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';">
                     <div class="quick-view-overlay">
                         <span>Ver Detalles</span>
                     </div>
@@ -418,13 +504,15 @@ class JNStore {
                     </div>
                 </div>
             `;
-            grid.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        grid.appendChild(fragment);
     }
 
-    // Open detail modal
+    // Open detail modal instantly
     openProductDetails(id) {
-        const product = this.products.find(p => p.id === id);
+        const product = (this.allProducts && this.allProducts.find(p => p.id === id)) || this.products.find(p => p.id === id);
         if (!product) return;
 
         this.selectedDetailProduct = product;
@@ -433,8 +521,6 @@ class JNStore {
         this.selectedDetailImageIndex = 0;
 
         const modal = document.getElementById('product-detail-modal');
-        const content = document.getElementById('product-detail-content');
-        
         modal.classList.remove('hidden');
         this.renderProductDetailsContent();
     }
@@ -882,7 +968,7 @@ class JNStore {
         }
     }
 
-    // Filter by Main Department (TODOS, MAQUILLAJE, ROPA, ACCESORIOS, PERFUMES, ZAPATOS)
+    // Filter by Main Department (TODOS, MAQUILLAJE, ROPA, ACCESORIOS, PERFUMES, ZAPATOS) - 0ms instant response
     filterMainCategory(mainCategory) {
         this.activeMainCategory = mainCategory || 'todos';
         this.activeCategory = 'todos'; // Reset subcategory filter when switching main department
@@ -899,16 +985,28 @@ class JNStore {
 
         this.renderNavigationCategories();
         this.showCatalog();
-        this.fetchProducts();
+        
+        // Instant filter from memory cache, fallback to fetch if not ready
+        if (this.allProducts && this.allProducts.length > 0) {
+            this.applyFiltersAndRender();
+        } else {
+            this.fetchProducts();
+        }
     }
 
-    // Filter by Subcategory Pill in Catalog
+    // Filter by Subcategory Pill in Catalog - 0ms instant response
     filterSubCategory(subCategory) {
         this.activeCategory = subCategory || 'todos';
 
         this.renderNavigationCategories();
         this.showCatalog();
-        this.fetchProducts();
+
+        // Instant filter from memory cache, fallback to fetch if not ready
+        if (this.allProducts && this.allProducts.length > 0) {
+            this.applyFiltersAndRender();
+        } else {
+            this.fetchProducts();
+        }
     }
 
     // Generic Category Filter for backwards compatibility
@@ -922,10 +1020,22 @@ class JNStore {
         }
     }
 
+    // Debounced real-time instant search
     handleSearch(event) {
         this.searchQuery = event.target.value;
         this.showCatalog();
-        this.fetchProducts();
+
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+        }
+
+        this.searchDebounceTimer = setTimeout(() => {
+            if (this.allProducts && this.allProducts.length > 0) {
+                this.applyFiltersAndRender();
+            } else {
+                this.fetchProducts();
+            }
+        }, 80);
     }
 
     showCatalog() {
@@ -1761,7 +1871,7 @@ class JNStore {
 
             if (res.ok) {
                 this.closeProductModal();
-                await this.fetchProducts();
+                await this.fetchProducts(true);
                 alert('¡Producto guardado exitosamente!');
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -1787,7 +1897,7 @@ class JNStore {
             });
 
             if (res.ok) {
-                await this.fetchProducts();
+                await this.fetchProducts(true);
                 alert('¡Producto movido a la papelera con éxito!');
             } else if (res.status === 401) {
                 alert('Tu sesión de administrador ha expirado tras el reinicio del servidor. Por favor, vuelve a iniciar sesión con tu usuario y contraseña.');
@@ -2117,7 +2227,7 @@ class JNStore {
 
             if (res.ok) {
                 alert('Pago confirmado e inventario descontado con éxito.');
-                await this.fetchProducts(); // Refresh products to update stocks in UI
+                await this.fetchProducts(true); // Refresh products to update stocks in UI
                 await this.fetchOrders();    // Refresh orders list
                 await this.renderAdminDashboard(); // Refresh dashboard alerts/counts
             } else {
@@ -2234,7 +2344,7 @@ class JNStore {
 
             if (res.ok) {
                 alert('¡Producto restaurado exitosamente al inventario!');
-                await this.fetchProducts();
+                await this.fetchProducts(true);
                 await this.fetchDeletedProducts();
                 await this.renderAdminDashboard();
             } else {
