@@ -514,6 +514,30 @@ nav.nav-links a.active-nav {
     box-shadow: 0 4px 10px rgba(224, 155, 169, 0.3);
 }
 
+.pill.pill-toggle-more {
+    background-color: rgba(212, 175, 55, 0.08);
+    border: 1px dashed var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-smooth);
+}
+
+.pill.pill-toggle-more:hover {
+    background-color: var(--gold);
+    color: var(--white);
+    border-style: solid;
+}
+
+.pill.pill-toggle-more.active-toggle {
+    background-color: rgba(224, 155, 169, 0.15);
+    border: 1px solid var(--accent-pink);
+    color: var(--accent-pink);
+}
+
 /* Products Grid & Cards */
 .products-grid {
     display: grid;

@@ -7,6 +7,7 @@ class JNStore {
         this.cart = [];
         this.activeMainCategory = 'todos'; // 'todos', 'maquillaje', 'ropa', 'accesorios', 'perfumes', 'zapatos', etc.
         this.activeCategory = 'todos'; // subcategory: 'todos', 'bases', 'rubores', 'vestidos', etc.
+        this.isPillsExpanded = false; // Collapsible subcategories pills toggle
         this.searchQuery = '';
         
         // Admin & Client Auth States
@@ -214,14 +215,32 @@ class JNStore {
             const isTodosSubActive = isCurrentSubActive('todos');
             let pillsHtml = `<button class="pill ${isTodosSubActive ? 'active' : ''}" onclick="app.filterSubCategory('todos')" id="pill-todos">Todos</button>`;
             
-            subCats.forEach(c => {
+            const maxVisiblePills = 5;
+            const hasMore = subCats.length > maxVisiblePills;
+            const visiblePills = (hasMore && !this.isPillsExpanded) ? subCats.slice(0, maxVisiblePills) : subCats;
+
+            visiblePills.forEach(c => {
                 const slug = this.slugify(c.name);
                 const isActive = isCurrentSubActive(c.name);
                 const safeName = (c.name || '').replace(/'/g, "\\'");
                 pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
             });
+
+            if (hasMore) {
+                if (!this.isPillsExpanded) {
+                    pillsHtml += `<button class="pill pill-toggle-more" onclick="app.togglePillsExpanded()" id="pill-toggle-more">Ver Más <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i></button>`;
+                } else {
+                    pillsHtml += `<button class="pill pill-toggle-more active-toggle" onclick="app.togglePillsExpanded()" id="pill-toggle-more">Ver Menos <i class="fas fa-chevron-up" style="font-size: 10px; margin-left: 4px;"></i></button>`;
+                }
+            }
+
             filterPills.innerHTML = pillsHtml;
         }
+    }
+
+    togglePillsExpanded() {
+        this.isPillsExpanded = !this.isPillsExpanded;
+        this.renderNavigationCategories();
     }
 
     toggleMoreDropdown(event) {
