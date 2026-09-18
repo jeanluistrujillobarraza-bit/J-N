@@ -73,18 +73,20 @@ h1, h2, h3, h4, .logo-area h1 {
 }
 
 .header-container {
-    max-width: 1200px;
+    max-width: 1350px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px 25px;
+    gap: 15px;
 }
 
 .logo-area {
     cursor: pointer;
     text-align: center;
     transition: var(--transition-smooth);
+    flex-shrink: 0;
 }
 
 .logo-area:hover {
@@ -109,7 +111,8 @@ h1, h2, h3, h4, .logo-area h1 {
 
 nav.nav-links {
     display: flex;
-    gap: 30px;
+    align-items: center;
+    gap: 20px;
 }
 
 nav.nav-links a {
@@ -1986,12 +1989,22 @@ nav.nav-links a.active-nav {
         grid-column: 1 / span 2;
         grid-row: 2;
         width: 100%;
-        justify-content: center;
+        display: flex;
+        justify-content: flex-start;
         align-items: center;
-        gap: 18px;
+        gap: 16px;
         border-top: 1px solid var(--gray-light);
-        padding-top: 8px;
-        flex-wrap: wrap;
+        padding: 8px 4px 6px 4px;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    nav.nav-links::-webkit-scrollbar {
+        display: none;
+    }
+    nav.nav-links a {
+        flex-shrink: 0;
     }
     .nav-dropdown-menu {
         top: calc(100% + 6px);

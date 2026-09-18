@@ -76,17 +76,11 @@ public class ProductService {
         boolean hasQuery = query != null && !query.trim().isEmpty();
 
         if (hasCategory && hasQuery) {
-            if ("maquillaje".equalsIgnoreCase(category) || "ropa".equalsIgnoreCase(category)) {
-                return productRepository.searchByTypeAndKeyword(category, query);
-            }
-            return productRepository.searchByCategoryAndKeyword(category, query);
+            return productRepository.searchByCategoryOrTypeAndKeyword(category.trim(), query.trim());
         } else if (hasCategory) {
-            if ("maquillaje".equalsIgnoreCase(category) || "ropa".equalsIgnoreCase(category)) {
-                return productRepository.findByTypeIgnoreCase(category);
-            }
-            return productRepository.findByCategoryIgnoreCase(category);
+            return productRepository.findByCategoryOrTypeIgnoreCase(category.trim());
         } else if (hasQuery) {
-            return productRepository.searchByNameOrDescription(query);
+            return productRepository.searchByNameOrDescription(query.trim());
         } else {
             return productRepository.findActiveProducts();
         }

@@ -15,18 +15,12 @@ public interface ProductRepository extends MongoRepository<Product, String> {
     @Query("{ 'deleted': true }")
     List<Product> findDeletedProducts();
     
-    @Query("{ 'deleted': { '$ne': true }, 'category': { '$regex': ?0, '$options': 'i' } }")
-    List<Product> findByCategoryIgnoreCase(String category);
-    
-    @Query("{ 'deleted': { '$ne': true }, 'type': { '$regex': ?0, '$options': 'i' } }")
-    List<Product> findByTypeIgnoreCase(String type);
-    
     @Query("{ 'deleted': { '$ne': true }, '$or': [ { 'name': { '$regex': ?0, '$options': 'i' } }, { 'description': { '$regex': ?0, '$options': 'i' } } ] }")
     List<Product> searchByNameOrDescription(String keyword);
-    
-    @Query("{ 'deleted': { '$ne': true }, 'category': { '$regex': ?0, '$options': 'i' }, '$or': [ { 'name': { '$regex': ?1, '$options': 'i' } }, { 'description': { '$regex': ?1, '$options': 'i' } } ] }")
-    List<Product> searchByCategoryAndKeyword(String category, String keyword);
 
-    @Query("{ 'deleted': { '$ne': true }, 'type': { '$regex': ?0, '$options': 'i' }, '$or': [ { 'name': { '$regex': ?1, '$options': 'i' } }, { 'description': { '$regex': ?1, '$options': 'i' } } ] }")
-    List<Product> searchByTypeAndKeyword(String type, String keyword);
+    @Query("{ 'deleted': { '$ne': true }, '$or': [ { 'category': { '$regex': ?0, '$options': 'i' } }, { 'type': { '$regex': ?0, '$options': 'i' } } ] }")
+    List<Product> findByCategoryOrTypeIgnoreCase(String categoryOrType);
+
+    @Query("{ 'deleted': { '$ne': true }, '$and': [ { '$or': [ { 'category': { '$regex': ?0, '$options': 'i' } }, { 'type': { '$regex': ?0, '$options': 'i' } } ] }, { '$or': [ { 'name': { '$regex': ?1, '$options': 'i' } }, { 'description': { '$regex': ?1, '$options': 'i' } } ] } ] }")
+    List<Product> searchByCategoryOrTypeAndKeyword(String categoryOrType, String keyword);
 }

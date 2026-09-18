@@ -120,25 +120,33 @@ class JNStore {
         const headerNav = document.getElementById('header-nav-links');
         const filterPills = document.getElementById('catalog-filter-pills');
 
+        const isCurrentActive = (catName) => {
+            if (!this.activeCategory) return false;
+            return this.activeCategory.toLowerCase() === (catName || '').toLowerCase();
+        };
+
         // Render Header Nav Links
         if (headerNav) {
-            let navHtml = `<a href="#" onclick="app.filterCategory('todos'); return false;" class="${this.activeCategory === 'todos' ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
+            const isTodosActive = isCurrentActive('todos');
+            let navHtml = `<a href="#" onclick="app.filterCategory('todos'); return false;" class="${isTodosActive ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
             
-            // Limit visible categories on desktop header to first 4, rest in "Ver Más" dropdown
-            const maxVisible = 4;
-            const visibleCats = this.categories.slice(0, maxVisible);
-            const moreCats = this.categories.slice(maxVisible);
+            // If there are more than 7 categories, show first 6 + dynamic 'Más' dropdown
+            const maxDirectVisible = 7;
+            const useDropdown = this.categories.length > maxDirectVisible;
+            const visibleCats = useDropdown ? this.categories.slice(0, 6) : this.categories;
+            const moreCats = useDropdown ? this.categories.slice(6) : [];
 
             visibleCats.forEach(c => {
                 const slug = this.slugify(c.name);
-                const isActive = this.activeCategory === c.name.toLowerCase();
-                navHtml += `<a href="#" onclick="app.filterCategory('${c.name.toLowerCase()}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${c.name}</a>`;
+                const isActive = isCurrentActive(c.name);
+                const safeName = (c.name || '').replace(/'/g, "\\'");
+                navHtml += `<a href="#" onclick="app.filterCategory('${safeName}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${c.name}</a>`;
             });
 
             if (moreCats.length > 0) {
-                const activeMoreCat = moreCats.find(c => this.activeCategory === c.name.toLowerCase());
+                const activeMoreCat = moreCats.find(c => isCurrentActive(c.name));
                 const isAnyMoreActive = !!activeMoreCat;
-                const dropdownLabel = activeMoreCat ? activeMoreCat.name : 'Ver Más';
+                const dropdownLabel = activeMoreCat ? activeMoreCat.name : 'Más';
 
                 navHtml += `
                     <div class="nav-dropdown" id="nav-more-dropdown">
@@ -150,8 +158,9 @@ class JNStore {
 
                 moreCats.forEach(c => {
                     const slug = this.slugify(c.name);
-                    const isActive = this.activeCategory === c.name.toLowerCase();
-                    navHtml += `<a href="#" onclick="app.filterCategory('${c.name.toLowerCase()}'); app.closeMoreDropdown(); return false;" class="${isActive ? 'active-dropdown-item' : ''}" id="nav-${slug}">${c.name}</a>`;
+                    const isActive = isCurrentActive(c.name);
+                    const safeName = (c.name || '').replace(/'/g, "\\'");
+                    navHtml += `<a href="#" onclick="app.filterCategory('${safeName}'); app.closeMoreDropdown(); return false;" class="${isActive ? 'active-dropdown-item' : ''}" id="nav-${slug}">${c.name}</a>`;
                 });
 
                 navHtml += `
@@ -165,11 +174,13 @@ class JNStore {
 
         // Render Catalog Filter Pills
         if (filterPills) {
-            let pillsHtml = `<button class="pill ${this.activeCategory === 'todos' ? 'active' : ''}" onclick="app.filterCategory('todos')" id="pill-todos">Todos</button>`;
+            const isTodosActive = isCurrentActive('todos');
+            let pillsHtml = `<button class="pill ${isTodosActive ? 'active' : ''}" onclick="app.filterCategory('todos')" id="pill-todos">Todos</button>`;
             this.categories.forEach(c => {
                 const slug = this.slugify(c.name);
-                const isActive = this.activeCategory === c.name.toLowerCase();
-                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterCategory('${c.name.toLowerCase()}')" id="pill-${slug}">${c.name}</button>`;
+                const isActive = isCurrentActive(c.name);
+                const safeName = (c.name || '').replace(/'/g, "\\'");
+                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
             });
             filterPills.innerHTML = pillsHtml;
         }
@@ -770,36 +781,19 @@ class JNStore {
 
     // Filter by Category pills / tabs
     filterCategory(category) {
-        this.activeCategory = category;
-        
-        // Update navigation UI links
-        const navs = ['todos', ...this.categories.map(c => this.slugify(c.name))];
-        const activeSlug = category === 'todos' ? 'todos' : this.slugify(category);
-
-        navs.forEach(n => {
-            const navEl = document.getElementById(`nav-${n}`);
-            const pillEl = document.getElementById(`pill-${n}`);
-            if (navEl) {
-                if (n === activeSlug) navEl.classList.add('active-nav');
-                else navEl.classList.remove('active-nav');
-            }
-            if (pillEl) {
-                if (n === activeSlug) pillEl.classList.add('active');
-                else pillEl.classList.remove('active');
-            }
-        });
+        this.activeCategory = category || 'todos';
 
         // Hide banner if not on Home/Todos
         const banner = document.getElementById('hero-banner');
         if (banner) {
-            if (category === 'todos' && !this.isAdmin) {
+            if (this.activeCategory.toLowerCase() === 'todos' && !this.isAdmin) {
                 banner.classList.remove('hidden');
             } else {
                 banner.classList.add('hidden');
             }
         }
 
-        // Re-render navigation categories to update dropdown selection label
+        // Re-render navigation categories to update active states in header & catalog
         this.renderNavigationCategories();
 
         // Switch out of admin section if filter is clicked
