@@ -216,52 +216,46 @@ class JNStore {
             }
 
             const isTodosSubActive = isCurrentSubActive('todos');
-            let pillsHtml = `<button class="pill ${isTodosSubActive ? 'active' : ''}" onclick="app.filterSubCategory('todos')" id="pill-todos">Todos</button>`;
             
             const maxVisiblePills = 3;
             const hasMore = subCats.length > maxVisiblePills;
             const visiblePills = subCats.slice(0, maxVisiblePills);
             const morePills = subCats.slice(maxVisiblePills);
 
+            let mainRowHtml = `<div class="filter-pills-main-row">`;
+            mainRowHtml += `<button type="button" class="pill ${isTodosSubActive ? 'active' : ''}" onclick="app.filterSubCategory('todos')" id="pill-todos">Todos</button>`;
+
             visiblePills.forEach(c => {
                 const slug = this.slugify(c.name);
                 const isActive = isCurrentSubActive(c.name);
                 const safeName = (c.name || '').replace(/'/g, "\\'");
-                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
+                mainRowHtml += `<button type="button" class="pill ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
             });
 
             if (hasMore) {
-                const activeMore = morePills.find(c => isCurrentSubActive(c.name));
-                const isAnyMoreActive = !!activeMore;
-                const toggleLabel = activeMore ? activeMore.name : 'Ver Más';
-
-                pillsHtml += `
-                    <div class="filter-more-dropdown-wrapper" id="filter-more-dropdown-wrapper">
-                        <button class="pill pill-toggle-more ${this.isPillsExpanded ? 'active-toggle' : ''} ${isAnyMoreActive ? 'active' : ''}" onclick="app.togglePillsExpanded(event)" id="pill-toggle-more">
-                            ${toggleLabel} <i class="fas ${this.isPillsExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}" style="font-size: 10px; margin-left: 4px;"></i>
-                        </button>
-                        <div class="filter-more-dropdown ${this.isPillsExpanded ? 'show' : ''}" id="filter-more-dropdown-menu">
+                const toggleText = this.isPillsExpanded ? 'Ver Menos' : 'Ver Más';
+                const toggleIcon = this.isPillsExpanded ? 'fa-chevron-up' : 'fa-chevron-down';
+                mainRowHtml += `
+                    <button type="button" class="pill pill-toggle-more ${this.isPillsExpanded ? 'active-toggle' : ''}" onclick="app.togglePillsExpanded(event)" id="pill-toggle-more">
+                        ${toggleText} <i class="fas ${toggleIcon}" style="font-size: 10px; margin-left: 4px;"></i>
+                    </button>
                 `;
+            }
+            mainRowHtml += `</div>`;
 
+            let moreRowHtml = '';
+            if (hasMore) {
+                moreRowHtml = `<div class="filter-pills-more-row ${this.isPillsExpanded ? 'show' : ''}" id="filter-pills-more-panel">`;
                 morePills.forEach(c => {
                     const slug = this.slugify(c.name);
                     const isActive = isCurrentSubActive(c.name);
                     const safeName = (c.name || '').replace(/'/g, "\\'");
-                    pillsHtml += `
-                        <button type="button" class="dropdown-pill-item ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}'); app.closePillsExpanded();" id="pill-drop-${slug}">
-                            <span>${c.name}</span>
-                            ${isActive ? '<i class="fas fa-check" style="font-size: 10px; color: var(--white);"></i>' : ''}
-                        </button>
-                    `;
+                    moreRowHtml += `<button type="button" class="pill ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
                 });
-
-                pillsHtml += `
-                        </div>
-                    </div>
-                `;
+                moreRowHtml += `</div>`;
             }
 
-            filterPills.innerHTML = pillsHtml;
+            filterPills.innerHTML = mainRowHtml + moreRowHtml;
         }
     }
 
