@@ -143,28 +143,20 @@ public class ProductController {
         }
 
         List<String> imageUrls = new ArrayList<>();
-        File uploadDir = new File("uploads");
-        if (!uploadDir.exists()) {
-            uploadDir.mkdirs();
-        }
 
         for (MultipartFile file : files) {
             if (file.isEmpty()) continue;
             try {
-                String originalFilename = file.getOriginalFilename();
-                String fileExtension = "";
-                if (originalFilename != null && originalFilename.contains(".")) {
-                    fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+                String contentType = file.getContentType();
+                if (contentType == null || !contentType.startsWith("image/")) {
+                    contentType = "image/jpeg";
                 }
-                
-                String newFilename = UUID.randomUUID().toString() + fileExtension;
-                Path destinationPath = Paths.get("uploads", newFilename);
-                Files.write(destinationPath, file.getBytes());
-                
-                imageUrls.add("/uploads/" + newFilename);
+                String base64 = java.util.Base64.getEncoder().encodeToString(file.getBytes());
+                String dataUrl = "data:" + contentType + ";base64," + base64;
+                imageUrls.add(dataUrl);
             } catch (IOException e) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of("error", "Error al subir archivos: " + e.getMessage()));
+                        .body(Map.of("error", "Error al procesar archivos: " + e.getMessage()));
             }
         }
 
