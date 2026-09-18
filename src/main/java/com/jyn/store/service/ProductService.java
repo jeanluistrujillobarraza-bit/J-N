@@ -2,8 +2,10 @@ package com.jyn.store.service;
 
 import com.jyn.store.dto.CartItemDto;
 import com.jyn.store.dto.StockAlert;
+import com.jyn.store.model.Category;
 import com.jyn.store.model.Product;
 import com.jyn.store.model.SizeColorStock;
+import com.jyn.store.repository.CategoryRepository;
 import com.jyn.store.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,9 @@ public class ProductService {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
 
     public List<Product> getAllProducts() {
         return productRepository.findActiveProducts();
@@ -70,9 +75,6 @@ public class ProductService {
     public void permanentDeleteProduct(String id) {
         productRepository.deleteById(id);
     }
-
-    @Autowired
-    private com.jyn.store.repository.CategoryRepository categoryRepository;
 
     public List<Product> searchProducts(String category, String mainCategory, String query) {
         boolean hasCategory = category != null && !category.trim().isEmpty() && !category.equalsIgnoreCase("todos");
