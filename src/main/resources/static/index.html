@@ -201,38 +201,75 @@
 
                     <!-- Categories Tab -->
                     <div class="admin-tab-content hidden" id="content-categories">
-                        <h3 class="content-title">Categorías del Sistema</h3>
-                        <div class="category-manager-grid">
-                            <div class="category-form-card">
-                                <h4 id="category-form-title">Nueva Categoría</h4>
-                                <form id="category-form" onsubmit="app.handleSaveCategory(event)">
-                                    <input type="hidden" id="category-id" value="">
-                                    <div class="form-group">
-                                        <label for="category-name">Nombre de Subcategoría / Categoría</label>
-                                        <input type="text" id="category-name" required placeholder="Ej: Bases, Vestidos, Labiales">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="category-parent">Categoría Principal / Departamento</label>
-                                        <input type="text" id="category-parent" list="parent-categories-datalist" placeholder="Ej: Maquillaje, Ropa, Accesorios, Perfumes, Zapatos" value="Maquillaje" required>
-                                        <datalist id="parent-categories-datalist">
-                                            <option value="Maquillaje">
-                                            <option value="Ropa">
-                                            <option value="Accesorios">
-                                            <option value="Perfumes">
-                                            <option value="Zapatos">
-                                        </datalist>
-                                    </div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button type="submit" id="category-submit-btn" class="gold-btn w-100">Crear Categoría</button>
-                                        <button type="button" id="category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditCategory()" style="padding: 10px 14px;">Cancelar</button>
-                                    </div>
-                                </form>
+                        <h3 class="content-title">Gestión de Categorías y Subcategorías</h3>
+                        
+                        <!-- 1. Categorías Principales (Departamentos) -->
+                        <div style="margin-bottom: 40px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                <h4 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--dark-neutral); margin: 0;">
+                                    <i class="fas fa-layer-group" style="color: var(--gold); margin-right: 6px;"></i> 1. Categorías Principales (Barra Superior)
+                                </h4>
+                                <span style="font-size: 12px; color: var(--gray-dark);">(Aparecen arriba: TODOS | MAQUILLAJE | ROPA...)</span>
                             </div>
-                            <div class="category-list-card">
-                                <h4>Listado</h4>
-                                <ul class="category-list" id="admin-category-list">
-                                    <!-- Dynamic categories -->
-                                </ul>
+                            <div class="category-manager-grid">
+                                <div class="category-form-card">
+                                    <h4 id="main-category-form-title">Nueva Categoría Principal</h4>
+                                    <form id="main-category-form" onsubmit="app.handleSaveMainCategory(event)">
+                                        <input type="hidden" id="main-category-id" value="">
+                                        <div class="form-group">
+                                            <label for="main-category-name">Nombre de Categoría Principal</label>
+                                            <input type="text" id="main-category-name" required placeholder="Ej: Maquillaje, Ropa, Accesorios, Perfumes, Zapatos">
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="submit" id="main-category-submit-btn" class="gold-btn w-100">Crear Categoría Principal</button>
+                                            <button type="button" id="main-category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditMainCategory()" style="padding: 10px 14px;">Cancelar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="category-list-card">
+                                    <h4>Listado de Categorías Principales</h4>
+                                    <ul class="category-list" id="admin-main-category-list">
+                                        <!-- Dynamic main categories -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Subcategorías (Filtros de Colección) -->
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                <h4 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--dark-neutral); margin: 0;">
+                                    <i class="fas fa-tags" style="color: var(--accent-pink); margin-right: 6px;"></i> 2. Subcategorías (Filtros de Colección)
+                                </h4>
+                                <span style="font-size: 12px; color: var(--gray-dark);">(Aparecen abajo al seleccionar una categoría principal: Bases, Sombras...)</span>
+                            </div>
+                            <div class="category-manager-grid">
+                                <div class="category-form-card">
+                                    <h4 id="category-form-title">Nueva Subcategoría</h4>
+                                    <form id="category-form" onsubmit="app.handleSaveCategory(event)">
+                                        <input type="hidden" id="category-id" value="">
+                                        <div class="form-group">
+                                            <label for="category-name">Nombre de Subcategoría</label>
+                                            <input type="text" id="category-name" required placeholder="Ej: Bases, Correctores, Vestidos, Sombras">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="category-parent">Categoría Principal a la que pertenece</label>
+                                            <select id="category-parent" required>
+                                                <!-- Dynamic main categories options -->
+                                            </select>
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="submit" id="category-submit-btn" class="gold-btn w-100">Crear Subcategoría</button>
+                                            <button type="button" id="category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditCategory()" style="padding: 10px 14px;">Cancelar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="category-list-card">
+                                    <h4>Listado de Subcategorías</h4>
+                                    <ul class="category-list" id="admin-category-list">
+                                        <!-- Dynamic subcategories -->
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>

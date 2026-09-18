@@ -4,6 +4,7 @@ class JNStore {
     constructor() {
         this.products = [];
         this.categories = [];
+        this.mainCategories = [];
         this.cart = [];
         this.activeMainCategory = 'todos'; // 'todos', 'maquillaje', 'ropa', 'accesorios', 'perfumes', 'zapatos', etc.
         this.activeCategory = 'todos'; // subcategory: 'todos', 'bases', 'rubores', 'vestidos', etc.
@@ -35,6 +36,7 @@ class JNStore {
         this.loadCartFromStorage();
         this.loadRememberedUser();
         await this.checkSession();
+        await this.fetchMainCategories();
         await this.fetchCategories();
         await this.fetchProducts();
         this.renderCart();
@@ -119,23 +121,10 @@ class JNStore {
     }
 
     getMainCategories() {
-        // Collect all distinct parent / department categories
-        const defaults = ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
-        const map = new Map();
-
-        // Register default main categories
-        defaults.forEach(d => map.set(d.toLowerCase(), d));
-
-        // Add any parentCategory present in categories from the database
-        if (this.categories && this.categories.length > 0) {
-            this.categories.forEach(c => {
-                const parent = (c.parentCategory && c.parentCategory.trim()) ? c.parentCategory.trim() : '';
-                if (parent && !map.has(parent.toLowerCase())) {
-                    map.set(parent.toLowerCase(), parent);
-                }
-            });
+        if (this.mainCategories && this.mainCategories.length > 0) {
+            return this.mainCategories.map(m => m.name);
         }
-        return Array.from(map.values());
+        return ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
     }
 
     renderNavigationCategories() {
@@ -261,7 +250,20 @@ class JNStore {
         }
     }
 
-    // Fetch categories
+    // Fetch main categories (departments)
+    async fetchMainCategories() {
+        try {
+            const res = await fetch('/api/main-categories');
+            this.mainCategories = await res.json();
+            this.renderMainCategoriesList();
+            this.populateParentCategorySelect();
+            this.renderNavigationCategories();
+        } catch (e) {
+            console.error("Error al obtener categorías principales", e);
+        }
+    }
+
+    // Fetch categories (subcategories)
     async fetchCategories() {
         try {
             const res = await fetch('/api/categories');
@@ -1250,6 +1252,7 @@ class JNStore {
         } else if (tab === 'products') {
             this.renderAdminInventory();
         } else if (tab === 'categories') {
+            this.fetchMainCategories();
             this.fetchCategories();
         } else if (tab === 'orders') {
             this.fetchOrders();
@@ -1372,6 +1375,61 @@ class JNStore {
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    // Admin Main Categories List
+    renderMainCategoriesList() {
+        const list = document.getElementById('admin-main-category-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        if (!this.mainCategories || this.mainCategories.length === 0) {
+            list.innerHTML = '<li style="padding: 20px; color: var(--gray-dark); text-align: center; list-style: none;">No hay categorías principales registradas.</li>';
+            return;
+        }
+
+        this.mainCategories.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'category-list-item';
+            const escapedName = (m.name || '').replace(/'/g, "\\'");
+            li.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="cat-item-name" style="font-weight: 700; color: var(--dark-neutral);">${m.name}</span>
+                </div>
+                <div class="cat-item-actions">
+                    <button type="button" class="btn-edit-cat" onclick="app.startEditMainCategory('${m.id}', '${escapedName}')" title="Editar categoría principal ${escapedName}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" class="btn-delete-cat" onclick="app.handleDeleteMainCategory('${m.id}', '${escapedName}')" title="Eliminar categoría principal ${escapedName}">
+                        <i class="fas fa-trash-alt"></i> Eliminar
+                    </button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    populateParentCategorySelect() {
+        const select = document.getElementById('category-parent');
+        if (!select) return;
+
+        const currentVal = select.value;
+        select.innerHTML = '';
+
+        const mains = this.getMainCategories();
+        mains.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+
+        if (currentVal && mains.includes(currentVal)) {
+            select.value = currentVal;
+        } else if (mains.length > 0) {
+            select.value = mains[0];
+        }
     }
 
     // Admin Categories Tab
@@ -1700,6 +1758,111 @@ class JNStore {
         } catch (e) {
             console.error(e);
             alert('Error de conexión al eliminar el producto.');
+        }
+    }
+
+    // Main Categories (Departments) CRUD actions
+    startEditMainCategory(id, name) {
+        const idInput = document.getElementById('main-category-id');
+        const nameInput = document.getElementById('main-category-name');
+        const formTitle = document.getElementById('main-category-form-title');
+        const submitBtn = document.getElementById('main-category-submit-btn');
+        const cancelBtn = document.getElementById('main-category-cancel-btn');
+
+        if (idInput) idInput.value = id;
+        if (nameInput) {
+            nameInput.value = name;
+            nameInput.focus();
+        }
+        if (formTitle) formTitle.textContent = 'Editar Categoría Principal';
+        if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+    }
+
+    cancelEditMainCategory() {
+        const idInput = document.getElementById('main-category-id');
+        const nameInput = document.getElementById('main-category-name');
+        const formTitle = document.getElementById('main-category-form-title');
+        const submitBtn = document.getElementById('main-category-submit-btn');
+        const cancelBtn = document.getElementById('main-category-cancel-btn');
+
+        if (idInput) idInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (formTitle) formTitle.textContent = 'Nueva Categoría Principal';
+        if (submitBtn) submitBtn.textContent = 'Crear Categoría Principal';
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+    }
+
+    async handleSaveMainCategory(event) {
+        event.preventDefault();
+        const idInput = document.getElementById('main-category-id');
+        const nameInput = document.getElementById('main-category-name');
+        if (!nameInput) return;
+
+        const mainId = idInput ? idInput.value.trim() : '';
+        const name = nameInput.value.trim();
+        if (!name) return;
+
+        const isEditing = !!mainId;
+        const submitBtn = document.getElementById('main-category-submit-btn');
+        const originalText = submitBtn ? submitBtn.innerHTML : (isEditing ? 'Guardar Cambios' : 'Crear Categoría Principal');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${isEditing ? 'Guardando...' : 'Creando...'}`;
+        }
+
+        try {
+            const url = isEditing ? `/api/main-categories/${mainId}` : '/api/main-categories';
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+
+            if (res.ok) {
+                this.cancelEditMainCategory();
+                await this.fetchMainCategories();
+                await this.fetchCategories();
+                await this.fetchProducts();
+                alert(isEditing ? `Categoría principal actualizada a "${name}".` : `Categoría principal "${name}" creada exitosamente.`);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || `Error al ${isEditing ? 'actualizar' : 'crear'} la categoría principal.`);
+            }
+        } catch (e) {
+            console.error(`Error al guardar categoría principal:`, e);
+            alert(`Error de conexión.`);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+    }
+
+    async handleDeleteMainCategory(mainId, mainName = '') {
+        const msg = mainName ? `¿Deseas eliminar la categoría principal "${mainName}"? (Las subcategorías asociadas mantendrán sus nombres)` : '¿Deseas eliminar esta categoría principal?';
+        if (!confirm(msg)) return;
+
+        try {
+            const res = await fetch(`/api/main-categories/${mainId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                await this.fetchMainCategories();
+                await this.fetchCategories();
+                await this.fetchProducts();
+                alert('Categoría principal eliminada exitosamente.');
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.error || 'No se pudo eliminar la categoría principal.');
+            }
+        } catch (e) {
+            console.error("Error al eliminar categoría principal:", e);
+            alert('Error de conexión.');
         }
     }
 
