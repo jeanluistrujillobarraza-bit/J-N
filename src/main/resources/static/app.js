@@ -5,7 +5,8 @@ class JNStore {
         this.products = [];
         this.categories = [];
         this.cart = [];
-        this.activeCategory = 'todos';
+        this.activeMainCategory = 'todos'; // 'todos', 'maquillaje', 'ropa', 'accesorios', 'perfumes', 'zapatos', etc.
+        this.activeCategory = 'todos'; // subcategory: 'todos', 'bases', 'rubores', 'vestidos', etc.
         this.searchQuery = '';
         
         // Admin & Client Auth States
@@ -116,37 +117,62 @@ class JNStore {
             .replace(/(^-|-$)+/g, '');
     }
 
+    getMainCategories() {
+        // Collect all distinct parent / department categories
+        const defaults = ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
+        const map = new Map();
+
+        // Register default main categories
+        defaults.forEach(d => map.set(d.toLowerCase(), d));
+
+        // Add any parentCategory present in categories from the database
+        if (this.categories && this.categories.length > 0) {
+            this.categories.forEach(c => {
+                const parent = (c.parentCategory && c.parentCategory.trim()) ? c.parentCategory.trim() : '';
+                if (parent && !map.has(parent.toLowerCase())) {
+                    map.set(parent.toLowerCase(), parent);
+                }
+            });
+        }
+        return Array.from(map.values());
+    }
+
     renderNavigationCategories() {
         const headerNav = document.getElementById('header-nav-links');
         const filterPills = document.getElementById('catalog-filter-pills');
 
-        const isCurrentActive = (catName) => {
-            if (!this.activeCategory) return false;
-            return this.activeCategory.toLowerCase() === (catName || '').toLowerCase();
+        const isCurrentMainActive = (mainName) => {
+            if (!this.activeMainCategory) return false;
+            return this.activeMainCategory.toLowerCase() === (mainName || '').toLowerCase();
         };
 
-        // Render Header Nav Links
-        if (headerNav) {
-            const isTodosActive = isCurrentActive('todos');
-            let navHtml = `<a href="#" onclick="app.filterCategory('todos'); return false;" class="${isTodosActive ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
-            
-            // If there are more than 7 categories, show first 6 + dynamic 'Más' dropdown
-            const maxDirectVisible = 7;
-            const useDropdown = this.categories.length > maxDirectVisible;
-            const visibleCats = useDropdown ? this.categories.slice(0, 6) : this.categories;
-            const moreCats = useDropdown ? this.categories.slice(6) : [];
+        const isCurrentSubActive = (subName) => {
+            if (!this.activeCategory) return false;
+            return this.activeCategory.toLowerCase() === (subName || '').toLowerCase();
+        };
 
-            visibleCats.forEach(c => {
-                const slug = this.slugify(c.name);
-                const isActive = isCurrentActive(c.name);
-                const safeName = (c.name || '').replace(/'/g, "\\'");
-                navHtml += `<a href="#" onclick="app.filterCategory('${safeName}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${c.name}</a>`;
+        // 1. Render Top Header Main Departments (Todos | Maquillaje | Ropa | Accesorios | Perfumes | Zapatos)
+        if (headerNav) {
+            const mainCats = this.getMainCategories();
+            const isTodosActive = isCurrentMainActive('todos');
+            let navHtml = `<a href="#" onclick="app.filterMainCategory('todos'); return false;" class="${isTodosActive ? 'active-nav' : ''}" id="nav-todos">Todos</a>`;
+
+            const maxVisible = 6;
+            const useDropdown = mainCats.length > maxVisible;
+            const visibleMains = useDropdown ? mainCats.slice(0, 5) : mainCats;
+            const moreMains = useDropdown ? mainCats.slice(5) : [];
+
+            visibleMains.forEach(mainName => {
+                const slug = this.slugify(mainName);
+                const isActive = isCurrentMainActive(mainName);
+                const safeName = mainName.replace(/'/g, "\\'");
+                navHtml += `<a href="#" onclick="app.filterMainCategory('${safeName}'); return false;" class="${isActive ? 'active-nav' : ''}" id="nav-${slug}">${mainName}</a>`;
             });
 
-            if (moreCats.length > 0) {
-                const activeMoreCat = moreCats.find(c => isCurrentActive(c.name));
-                const isAnyMoreActive = !!activeMoreCat;
-                const dropdownLabel = activeMoreCat ? activeMoreCat.name : 'Más';
+            if (moreMains.length > 0) {
+                const activeMore = moreMains.find(m => isCurrentMainActive(m));
+                const isAnyMoreActive = !!activeMore;
+                const dropdownLabel = activeMore ? activeMore : 'Más';
 
                 navHtml += `
                     <div class="nav-dropdown" id="nav-more-dropdown">
@@ -156,11 +182,11 @@ class JNStore {
                         <div class="nav-dropdown-menu" id="nav-dropdown-menu">
                 `;
 
-                moreCats.forEach(c => {
-                    const slug = this.slugify(c.name);
-                    const isActive = isCurrentActive(c.name);
-                    const safeName = (c.name || '').replace(/'/g, "\\'");
-                    navHtml += `<a href="#" onclick="app.filterCategory('${safeName}'); app.closeMoreDropdown(); return false;" class="${isActive ? 'active-dropdown-item' : ''}" id="nav-${slug}">${c.name}</a>`;
+                moreMains.forEach(mainName => {
+                    const slug = this.slugify(mainName);
+                    const isActive = isCurrentMainActive(mainName);
+                    const safeName = mainName.replace(/'/g, "\\'");
+                    navHtml += `<a href="#" onclick="app.filterMainCategory('${safeName}'); app.closeMoreDropdown(); return false;" class="${isActive ? 'active-dropdown-item' : ''}" id="nav-${slug}">${mainName}</a>`;
                 });
 
                 navHtml += `
@@ -172,15 +198,27 @@ class JNStore {
             headerNav.innerHTML = navHtml;
         }
 
-        // Render Catalog Filter Pills
+        // 2. Render Catalog Subcategory Filter Pills based on active Main Category
         if (filterPills) {
-            const isTodosActive = isCurrentActive('todos');
-            let pillsHtml = `<button class="pill ${isTodosActive ? 'active' : ''}" onclick="app.filterCategory('todos')" id="pill-todos">Todos</button>`;
-            this.categories.forEach(c => {
+            let subCats = [];
+            if (this.activeMainCategory === 'todos') {
+                subCats = this.categories;
+            } else {
+                const activeMainLower = this.activeMainCategory.toLowerCase();
+                subCats = this.categories.filter(c => {
+                    const parentLower = (c.parentCategory || 'Maquillaje').toLowerCase();
+                    return parentLower === activeMainLower || c.name.toLowerCase() === activeMainLower;
+                });
+            }
+
+            const isTodosSubActive = isCurrentSubActive('todos');
+            let pillsHtml = `<button class="pill ${isTodosSubActive ? 'active' : ''}" onclick="app.filterSubCategory('todos')" id="pill-todos">Todos</button>`;
+            
+            subCats.forEach(c => {
                 const slug = this.slugify(c.name);
-                const isActive = isCurrentActive(c.name);
+                const isActive = isCurrentSubActive(c.name);
                 const safeName = (c.name || '').replace(/'/g, "\\'");
-                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
+                pillsHtml += `<button class="pill ${isActive ? 'active' : ''}" onclick="app.filterSubCategory('${safeName}')" id="pill-${slug}">${c.name}</button>`;
             });
             filterPills.innerHTML = pillsHtml;
         }
@@ -222,6 +260,9 @@ class JNStore {
         try {
             let url = '/api/products';
             const params = [];
+            if (this.activeMainCategory && this.activeMainCategory !== 'todos') {
+                params.push(`mainCategory=${encodeURIComponent(this.activeMainCategory)}`);
+            }
             if (this.activeCategory && this.activeCategory !== 'todos') {
                 params.push(`category=${encodeURIComponent(this.activeCategory)}`);
             }
@@ -779,26 +820,44 @@ class JNStore {
         }
     }
 
-    // Filter by Category pills / tabs
-    filterCategory(category) {
-        this.activeCategory = category || 'todos';
+    // Filter by Main Department (TODOS, MAQUILLAJE, ROPA, ACCESORIOS, PERFUMES, ZAPATOS)
+    filterMainCategory(mainCategory) {
+        this.activeMainCategory = mainCategory || 'todos';
+        this.activeCategory = 'todos'; // Reset subcategory filter when switching main department
 
         // Hide banner if not on Home/Todos
         const banner = document.getElementById('hero-banner');
         if (banner) {
-            if (this.activeCategory.toLowerCase() === 'todos' && !this.isAdmin) {
+            if (this.activeMainCategory.toLowerCase() === 'todos' && !this.isAdmin) {
                 banner.classList.remove('hidden');
             } else {
                 banner.classList.add('hidden');
             }
         }
 
-        // Re-render navigation categories to update active states in header & catalog
         this.renderNavigationCategories();
-
-        // Switch out of admin section if filter is clicked
         this.showCatalog();
         this.fetchProducts();
+    }
+
+    // Filter by Subcategory Pill in Catalog
+    filterSubCategory(subCategory) {
+        this.activeCategory = subCategory || 'todos';
+
+        this.renderNavigationCategories();
+        this.showCatalog();
+        this.fetchProducts();
+    }
+
+    // Generic Category Filter for backwards compatibility
+    filterCategory(category) {
+        const catLower = (category || 'todos').toLowerCase();
+        const mainCats = this.getMainCategories().map(m => m.toLowerCase());
+        if (mainCats.includes(catLower) || catLower === 'todos') {
+            this.filterMainCategory(category);
+        } else {
+            this.filterSubCategory(category);
+        }
     }
 
     handleSearch(event) {
@@ -809,7 +868,7 @@ class JNStore {
 
     showCatalog() {
         document.getElementById('catalog-section').classList.remove('hidden');
-        if (this.activeCategory === 'todos') {
+        if (this.activeMainCategory === 'todos') {
             document.getElementById('hero-banner').classList.remove('hidden');
         } else {
             document.getElementById('hero-banner').classList.add('hidden');
@@ -1312,10 +1371,14 @@ class JNStore {
             const li = document.createElement('li');
             li.className = 'category-list-item';
             const escapedName = (c.name || '').replace(/'/g, "\\'");
+            const escapedParent = (c.parentCategory || 'Maquillaje').replace(/'/g, "\\'");
             li.innerHTML = `
-                <span class="cat-item-name">${c.name}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="cat-item-name">${c.name}</span>
+                    <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(212,175,55,0.12); color: var(--dark-neutral); font-weight: 600; border: 1px solid rgba(212,175,55,0.3);">${c.parentCategory || 'Maquillaje'}</span>
+                </div>
                 <div class="cat-item-actions">
-                    <button type="button" class="btn-edit-cat" onclick="app.startEditCategory('${c.id}', '${escapedName}')" title="Editar categoría ${escapedName}">
+                    <button type="button" class="btn-edit-cat" onclick="app.startEditCategory('${c.id}', '${escapedName}', '${escapedParent}')" title="Editar categoría ${escapedName}">
                         <i class="fas fa-edit"></i> Editar
                     </button>
                     <button type="button" class="btn-delete-cat" onclick="app.handleDeleteCategory('${c.id}', '${escapedName}')" title="Eliminar categoría ${escapedName}">
@@ -1622,9 +1685,10 @@ class JNStore {
     }
 
     // Categories CRUD actions
-    startEditCategory(catId, catName) {
+    startEditCategory(catId, catName, catParent = 'Maquillaje') {
         const idInput = document.getElementById('category-id');
         const nameInput = document.getElementById('category-name');
+        const parentInput = document.getElementById('category-parent');
         const formTitle = document.getElementById('category-form-title');
         const submitBtn = document.getElementById('category-submit-btn');
         const cancelBtn = document.getElementById('category-cancel-btn');
@@ -1634,6 +1698,7 @@ class JNStore {
             nameInput.value = catName;
             nameInput.focus();
         }
+        if (parentInput) parentInput.value = catParent || 'Maquillaje';
         if (formTitle) formTitle.textContent = 'Editar Categoría';
         if (submitBtn) submitBtn.textContent = 'Guardar Cambios';
         if (cancelBtn) cancelBtn.classList.remove('hidden');
@@ -1646,12 +1711,14 @@ class JNStore {
     cancelEditCategory() {
         const idInput = document.getElementById('category-id');
         const nameInput = document.getElementById('category-name');
+        const parentInput = document.getElementById('category-parent');
         const formTitle = document.getElementById('category-form-title');
         const submitBtn = document.getElementById('category-submit-btn');
         const cancelBtn = document.getElementById('category-cancel-btn');
 
         if (idInput) idInput.value = '';
         if (nameInput) nameInput.value = '';
+        if (parentInput) parentInput.value = 'Maquillaje';
         if (formTitle) formTitle.textContent = 'Nueva Categoría';
         if (submitBtn) submitBtn.textContent = 'Crear Categoría';
         if (cancelBtn) cancelBtn.classList.add('hidden');
@@ -1661,10 +1728,12 @@ class JNStore {
         event.preventDefault();
         const idInput = document.getElementById('category-id');
         const nameInput = document.getElementById('category-name');
+        const parentInput = document.getElementById('category-parent');
         if (!nameInput) return;
 
         const catId = idInput ? idInput.value.trim() : '';
         const name = nameInput.value.trim();
+        const parentCategory = parentInput ? parentInput.value.trim() : 'Maquillaje';
         if (!name) return;
 
         const isEditing = !!catId;
@@ -1682,7 +1751,7 @@ class JNStore {
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name })
+                body: JSON.stringify({ name: name, parentCategory: parentCategory || 'Maquillaje' })
             });
 
             if (res.ok) {
@@ -2081,7 +2150,7 @@ class JNStore {
         const searchInput = document.getElementById('global-search');
         if (searchInput) searchInput.value = '';
         this.searchQuery = '';
-        this.filterCategory('todos');
+        this.filterMainCategory('todos');
     }
 
     generateReceiptPDF(order, total, date, time) {

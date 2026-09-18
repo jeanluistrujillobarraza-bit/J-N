@@ -48,7 +48,7 @@ public class CategoryController {
             return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio"));
         }
         try {
-            Category updated = categoryService.updateCategory(id, category.getName());
+            Category updated = categoryService.updateCategory(id, category.getName(), category.getParentCategory());
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

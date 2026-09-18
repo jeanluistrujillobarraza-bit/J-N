@@ -28,16 +28,22 @@ public class CategoryService {
     }
 
     public Category saveCategory(Category category) {
-        // Prevent duplicate names
-        Optional<Category> existing = categoryRepository.findByNameIgnoreCase(category.getName().trim());
+        String trimmedName = category.getName().trim();
+        String parent = category.getParentCategory() != null && !category.getParentCategory().trim().isEmpty()
+                ? category.getParentCategory().trim() : "Maquillaje";
+        
+        Optional<Category> existing = categoryRepository.findByNameIgnoreCase(trimmedName);
         if (existing.isPresent()) {
-            return existing.get();
+            Category cat = existing.get();
+            cat.setParentCategory(parent);
+            return categoryRepository.save(cat);
         }
-        category.setName(category.getName().trim());
+        category.setName(trimmedName);
+        category.setParentCategory(parent);
         return categoryRepository.save(category);
     }
 
-    public Category updateCategory(String id, String newName) {
+    public Category updateCategory(String id, String newName, String newParentCategory) {
         Optional<Category> optional = categoryRepository.findById(id);
         if (optional.isEmpty()) {
             throw new RuntimeException("Categoría no encontrada");
@@ -54,12 +60,14 @@ public class CategoryService {
         }
 
         cat.setName(trimmedName);
+        if (newParentCategory != null && !newParentCategory.trim().isEmpty()) {
+            cat.setParentCategory(newParentCategory.trim());
+        }
         Category saved = categoryRepository.save(cat);
 
         // Cascade update in products if name changed
         if (oldName != null && !oldName.equalsIgnoreCase(trimmedName)) {
             List<Product> products = productRepository.findAll();
-            boolean changed = false;
             for (Product p : products) {
                 if (p.getCategory() != null && p.getCategory().equalsIgnoreCase(oldName)) {
                     p.setCategory(trimmedName);

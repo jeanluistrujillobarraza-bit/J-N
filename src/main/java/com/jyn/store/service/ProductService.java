@@ -71,19 +71,65 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
-    public List<Product> searchProducts(String category, String query) {
+    @Autowired
+    private com.jyn.store.repository.CategoryRepository categoryRepository;
+
+    public List<Product> searchProducts(String category, String mainCategory, String query) {
         boolean hasCategory = category != null && !category.trim().isEmpty() && !category.equalsIgnoreCase("todos");
+        boolean hasMainCategory = mainCategory != null && !mainCategory.trim().isEmpty() && !mainCategory.equalsIgnoreCase("todos");
         boolean hasQuery = query != null && !query.trim().isEmpty();
 
-        if (hasCategory && hasQuery) {
-            return productRepository.searchByCategoryOrTypeAndKeyword(category.trim(), query.trim());
-        } else if (hasCategory) {
-            return productRepository.findByCategoryOrTypeIgnoreCase(category.trim());
-        } else if (hasQuery) {
-            return productRepository.searchByNameOrDescription(query.trim());
-        } else {
-            return productRepository.findActiveProducts();
+        // 1. Specific subcategory filter
+        if (hasCategory) {
+            if (hasQuery) {
+                return productRepository.searchByCategoryOrTypeAndKeyword(category.trim(), query.trim());
+            } else {
+                return productRepository.findByCategoryOrTypeIgnoreCase(category.trim());
+            }
         }
+
+        // 2. Main category (department) filter (e.g. Maquillaje, Ropa, Accesorios, Perfumes, Zapatos)
+        if (hasMainCategory) {
+            String main = mainCategory.trim();
+            List<Category> allCategories = categoryRepository.findAll();
+            List<String> matchingCategoryNames = new ArrayList<>();
+            for (Category c : allCategories) {
+                if (main.equalsIgnoreCase(c.getParentCategory()) || main.equalsIgnoreCase(c.getName())) {
+                    matchingCategoryNames.add(c.getName());
+                }
+            }
+            matchingCategoryNames.add(main);
+
+            List<Product> allActive = productRepository.findActiveProducts();
+            List<Product> filtered = new ArrayList<>();
+
+            for (Product p : allActive) {
+                boolean matchesMain = (p.getType() != null && p.getType().equalsIgnoreCase(main))
+                        || (p.getCategory() != null && matchingCategoryNames.stream().anyMatch(cn -> cn.equalsIgnoreCase(p.getCategory())));
+
+                if (matchesMain) {
+                    if (hasQuery) {
+                        String q = query.trim().toLowerCase();
+                        boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                        boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                        if (nameMatch || descMatch) {
+                            filtered.add(p);
+                        }
+                    } else {
+                        filtered.add(p);
+                    }
+                }
+            }
+            return filtered;
+        }
+
+        // 3. Global search query
+        if (hasQuery) {
+            return productRepository.searchByNameOrDescription(query.trim());
+        }
+
+        // 4. Default: all active products
+        return productRepository.findActiveProducts();
     }
 
     public List<StockAlert> getStockAlerts() {

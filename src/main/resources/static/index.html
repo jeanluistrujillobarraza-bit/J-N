@@ -11,7 +11,7 @@
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=3.1">
 </head>
 <body>
 
@@ -208,8 +208,19 @@
                                 <form id="category-form" onsubmit="app.handleSaveCategory(event)">
                                     <input type="hidden" id="category-id" value="">
                                     <div class="form-group">
-                                        <label for="category-name">Nombre de Categoría</label>
-                                        <input type="text" id="category-name" required placeholder="Ej: Vestidos, Labiales">
+                                        <label for="category-name">Nombre de Subcategoría / Categoría</label>
+                                        <input type="text" id="category-name" required placeholder="Ej: Bases, Vestidos, Labiales">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="category-parent">Categoría Principal / Departamento</label>
+                                        <input type="text" id="category-parent" list="parent-categories-datalist" placeholder="Ej: Maquillaje, Ropa, Accesorios, Perfumes, Zapatos" value="Maquillaje" required>
+                                        <datalist id="parent-categories-datalist">
+                                            <option value="Maquillaje">
+                                            <option value="Ropa">
+                                            <option value="Accesorios">
+                                            <option value="Perfumes">
+                                            <option value="Zapatos">
+                                        </datalist>
                                     </div>
                                     <div style="display: flex; gap: 8px;">
                                         <button type="submit" id="category-submit-btn" class="gold-btn w-100">Crear Categoría</button>
@@ -514,6 +525,6 @@
     </footer>
 
     <!-- Scripts -->
-    <script src="/app.js" charset="UTF-8"></script>
+    <script src="/app.js?v=3.1" charset="UTF-8"></script>
 </body>
 </html>

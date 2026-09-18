@@ -37,8 +37,9 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<Product>> getProducts(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String mainCategory,
             @RequestParam(required = false) String query) {
-        return ResponseEntity.ok(productService.searchProducts(category, query));
+        return ResponseEntity.ok(productService.searchProducts(category, mainCategory, query));
     }
 
     @GetMapping("/{id}")
