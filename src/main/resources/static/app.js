@@ -407,7 +407,7 @@ class JNStore {
             card.innerHTML = `
                 <span class="product-card-badge ${p.type}">${p.type}</span>
                 <div class="product-card-image" onclick="app.openProductDetails('${p.id}')">
-                    <img src="${mainImg}" alt="${p.name}">
+                    <img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';">
                     <div class="quick-view-overlay">
                         <span>Ver Detalles</span>
                     </div>
@@ -567,7 +567,7 @@ class JNStore {
         content.innerHTML = `
             <div class="detail-images-container">
                 <div class="main-detail-image">
-                    <img src="${currentMainImage}" id="detail-main-img-el">
+                    <img src="${currentMainImage}" id="detail-main-img-el" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';">
                 </div>
                 <div class="thumbnail-images">${thumbsHtml}</div>
             </div>
@@ -1408,7 +1408,7 @@ class JNStore {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><img src="${mainImg}" alt="${p.name}"></td>
+                <td><img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';"></td>
                 <td><strong>${p.name}</strong></td>
                 <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category}</span></td>
                 <td>${this.formatPrice(p.price)}</td>
@@ -2213,7 +2213,7 @@ class JNStore {
             const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><img src="${mainImg}" alt="${p.name}" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
+                <td><img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
                 <td><strong>${p.name}</strong></td>
                 <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category || p.type}</span></td>
                 <td>${this.formatPrice(p.price)}</td>

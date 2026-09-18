@@ -5,6 +5,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
+import java.nio.file.Paths;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -16,7 +17,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             uploadDir.mkdirs();
         }
         
+        String absoluteUploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/");
+                .addResourceLocations(absoluteUploadPath, "file:uploads/", "file:/app/uploads/");
     }
 }
