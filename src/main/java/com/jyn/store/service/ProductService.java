@@ -24,25 +24,37 @@ public class ProductService {
     private CategoryRepository categoryRepository;
 
     public List<Product> getAllProducts() {
-        List<Product> all = productRepository.findAll();
-        List<Product> active = new ArrayList<>();
-        for (Product p : all) {
-            if (!p.isDeleted()) {
-                active.add(p);
+        try {
+            List<Product> all = productRepository.findAll();
+            List<Product> active = new ArrayList<>();
+            for (Product p : all) {
+                if (p != null && !p.isDeleted()) {
+                    active.add(p);
+                }
             }
+            return active;
+        } catch (Exception e) {
+            System.err.println("Error al obtener todos los productos de MongoDB: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
         }
-        return active;
     }
 
     public List<Product> getDeletedProducts() {
-        List<Product> all = productRepository.findAll();
-        List<Product> deleted = new ArrayList<>();
-        for (Product p : all) {
-            if (p.isDeleted()) {
-                deleted.add(p);
+        try {
+            List<Product> all = productRepository.findAll();
+            List<Product> deleted = new ArrayList<>();
+            for (Product p : all) {
+                if (p != null && p.isDeleted()) {
+                    deleted.add(p);
+                }
             }
+            return deleted;
+        } catch (Exception e) {
+            System.err.println("Error al obtener productos eliminados de MongoDB: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
         }
-        return deleted;
     }
 
     public Optional<Product> getProductById(String id) {
