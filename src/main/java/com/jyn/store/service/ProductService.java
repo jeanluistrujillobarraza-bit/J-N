@@ -24,11 +24,25 @@ public class ProductService {
     private CategoryRepository categoryRepository;
 
     public List<Product> getAllProducts() {
-        return productRepository.findActiveProducts();
+        List<Product> all = productRepository.findAll();
+        List<Product> active = new ArrayList<>();
+        for (Product p : all) {
+            if (!p.isDeleted()) {
+                active.add(p);
+            }
+        }
+        return active;
     }
 
     public List<Product> getDeletedProducts() {
-        return productRepository.findDeletedProducts();
+        List<Product> all = productRepository.findAll();
+        List<Product> deleted = new ArrayList<>();
+        for (Product p : all) {
+            if (p.isDeleted()) {
+                deleted.add(p);
+            }
+        }
+        return deleted;
     }
 
     public Optional<Product> getProductById(String id) {
@@ -77,20 +91,36 @@ public class ProductService {
     }
 
     public List<Product> searchProducts(String category, String mainCategory, String query) {
+        List<Product> allActive = getAllProducts();
+
         boolean hasCategory = category != null && !category.trim().isEmpty() && !category.equalsIgnoreCase("todos");
         boolean hasMainCategory = mainCategory != null && !mainCategory.trim().isEmpty() && !mainCategory.equalsIgnoreCase("todos");
         boolean hasQuery = query != null && !query.trim().isEmpty();
 
         // 1. Specific subcategory filter
         if (hasCategory) {
-            if (hasQuery) {
-                return productRepository.searchByCategoryOrTypeAndKeyword(category.trim(), query.trim());
-            } else {
-                return productRepository.findByCategoryOrTypeIgnoreCase(category.trim());
+            String cat = category.trim().toLowerCase();
+            List<Product> filtered = new ArrayList<>();
+            for (Product p : allActive) {
+                boolean catMatches = (p.getCategory() != null && p.getCategory().equalsIgnoreCase(cat))
+                        || (p.getType() != null && p.getType().equalsIgnoreCase(cat));
+                if (catMatches) {
+                    if (hasQuery) {
+                        String q = query.trim().toLowerCase();
+                        boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                        boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                        if (nameMatch || descMatch) {
+                            filtered.add(p);
+                        }
+                    } else {
+                        filtered.add(p);
+                    }
+                }
             }
+            return filtered;
         }
 
-        // 2. Main category (department) filter (e.g. Maquillaje, Ropa, Accesorios, Perfumes, Zapatos)
+        // 2. Main category (department) filter
         if (hasMainCategory) {
             String main = mainCategory.trim();
             List<Category> allCategories = categoryRepository.findAll();
@@ -102,7 +132,6 @@ public class ProductService {
             }
             matchingCategoryNames.add(main);
 
-            List<Product> allActive = productRepository.findActiveProducts();
             List<Product> filtered = new ArrayList<>();
 
             for (Product p : allActive) {
@@ -127,16 +156,27 @@ public class ProductService {
 
         // 3. Global search query
         if (hasQuery) {
-            return productRepository.searchByNameOrDescription(query.trim());
+            String q = query.trim().toLowerCase();
+            List<Product> filtered = new ArrayList<>();
+            for (Product p : allActive) {
+                boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                boolean catMatch = p.getCategory() != null && p.getCategory().toLowerCase().contains(q);
+                boolean typeMatch = p.getType() != null && p.getType().toLowerCase().contains(q);
+                if (nameMatch || descMatch || catMatch || typeMatch) {
+                    filtered.add(p);
+                }
+            }
+            return filtered;
         }
 
         // 4. Default: all active products
-        return productRepository.findActiveProducts();
+        return allActive;
     }
 
     public List<StockAlert> getStockAlerts() {
         List<StockAlert> alerts = new ArrayList<>();
-        List<Product> products = productRepository.findActiveProducts();
+        List<Product> products = getAllProducts();
 
         for (Product product : products) {
             if ("maquillaje".equalsIgnoreCase(product.getType())) {
