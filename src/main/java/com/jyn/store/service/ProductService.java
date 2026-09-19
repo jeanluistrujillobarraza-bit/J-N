@@ -63,7 +63,12 @@ public class ProductService {
                     com.mongodb.client.model.Projections.slice("images", 1)
                 );
 
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().projection(projection).batchSize(200)) {
+                List<org.bson.Document> docs = mongoTemplate.getCollection("products")
+                    .find()
+                    .projection(projection)
+                    .into(new ArrayList<>());
+
+                for (org.bson.Document doc : docs) {
                     Product p = mapDocToProduct(doc);
                     if (p != null) {
                         list.add(p);
