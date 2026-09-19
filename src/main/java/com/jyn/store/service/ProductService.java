@@ -26,7 +26,32 @@ public class ProductService {
     @Autowired(required = false)
     private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
 
+    private volatile List<Product> cachedActiveProducts = null;
+    private volatile long lastCacheTime = 0;
+    private static final long CACHE_TTL_MS = 60_000;
+
+    public synchronized void invalidateCache() {
+        this.cachedActiveProducts = null;
+        this.lastCacheTime = 0;
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void warmUpCache() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(800);
+                getAllProducts();
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
     public List<Product> getAllProducts() {
+        long now = System.currentTimeMillis();
+        List<Product> cached = this.cachedActiveProducts;
+        if (cached != null && (now - lastCacheTime < CACHE_TTL_MS) && !cached.isEmpty()) {
+            return new ArrayList<>(cached);
+        }
+
         List<Product> list = new ArrayList<>();
         
         if (mongoTemplate != null) {
@@ -38,7 +63,7 @@ public class ProductService {
                     com.mongodb.client.model.Projections.slice("images", 1)
                 );
 
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().projection(projection).batchSize(100)) {
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().projection(projection).batchSize(200)) {
                     Product p = mapDocToProduct(doc);
                     if (p != null) {
                         list.add(p);
@@ -68,10 +93,12 @@ public class ProductService {
         }
 
         if (active.isEmpty() && !list.isEmpty()) {
-            return list;
+            active = list;
         }
 
-        return active;
+        this.cachedActiveProducts = active;
+        this.lastCacheTime = System.currentTimeMillis();
+        return new ArrayList<>(active);
     }
 
     private Product mapDocToProduct(org.bson.Document doc) {
@@ -192,7 +219,9 @@ public class ProductService {
             }
             product.setImages(defaultImgs);
         }
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        invalidateCache();
+        return saved;
     }
 
     // Move to Trash (Soft Delete)
@@ -202,6 +231,7 @@ public class ProductService {
             Product prod = optional.get();
             prod.setDeleted(true);
             productRepository.save(prod);
+            invalidateCache();
         }
     }
 
@@ -212,12 +242,14 @@ public class ProductService {
             Product prod = optional.get();
             prod.setDeleted(false);
             productRepository.save(prod);
+            invalidateCache();
         }
     }
 
     // Permanent Deletion
     public void permanentDeleteProduct(String id) {
         productRepository.deleteById(id);
+        invalidateCache();
     }
 
     public List<Product> searchProducts(String category, String mainCategory, String query) {

@@ -1393,7 +1393,7 @@ class JNStore {
         this.setAuthTab('register');
     }
 
-    setAdminTab(tab) {
+    async setAdminTab(tab) {
         this.currentAdminTab = tab;
         const tabs = ['dashboard', 'products', 'categories', 'orders', 'trash'];
         
@@ -1411,19 +1411,21 @@ class JNStore {
         });
 
         if (tab === 'dashboard') {
+            await this.fetchMainCategories();
+            await this.fetchCategories();
             this.fetchProducts(true);
-            this.renderAdminDashboard();
+            await this.renderAdminDashboard();
         } else if (tab === 'products') {
-            this.fetchProducts(true);
+            await this.fetchProducts(true);
             this.renderAdminInventory();
         } else if (tab === 'categories') {
-            this.fetchMainCategories();
-            this.fetchCategories();
+            await this.fetchMainCategories();
+            await this.fetchCategories();
         } else if (tab === 'orders') {
-            this.fetchOrders();
+            await this.fetchOrders();
         } else if (tab === 'trash') {
-            this.fetchDeletedProducts();
-            this.fetchDeletedOrders();
+            await this.fetchDeletedProducts();
+            await this.fetchDeletedOrders();
         }
     }
 
@@ -1490,7 +1492,23 @@ class JNStore {
         const monthSalesEl = document.getElementById('stat-sales-month');
         const totalSalesEl = document.getElementById('stat-sales-total');
 
-        // Make sure data is loaded
+        // 1. Parallel stats and alerts fetch
+        const [statsRes, alertsRes] = await Promise.allSettled([
+            fetch('/api/orders/stats').then(r => r.ok ? r.json() : null),
+            fetch('/api/products/alerts').then(r => r.ok ? r.json() : [])
+        ]);
+
+        const stats = statsRes.status === 'fulfilled' ? statsRes.value : null;
+        const alerts = alertsRes.status === 'fulfilled' ? (alertsRes.value || []) : [];
+
+        if (stats) {
+            if (todaySalesEl) todaySalesEl.innerText = this.formatPrice(stats.todayRevenue || 0);
+            if (weekSalesEl) weekSalesEl.innerText = this.formatPrice(stats.weekRevenue || 0);
+            if (monthSalesEl) monthSalesEl.innerText = this.formatPrice(stats.monthRevenue || 0);
+            if (totalSalesEl) totalSalesEl.innerText = this.formatPrice(stats.totalRevenue || 0);
+        }
+
+        // Ensure categories & products are loaded
         if (!this.mainCategories || this.mainCategories.length === 0) {
             await this.fetchMainCategories();
         }
@@ -1502,29 +1520,7 @@ class JNStore {
         }
 
         const prods = (this.allProducts && this.allProducts.length > 0) ? this.allProducts : this.products;
-
-        try {
-            const statsRes = await fetch('/api/orders/stats');
-            if (statsRes.ok) {
-                const stats = await statsRes.json();
-                if (todaySalesEl) todaySalesEl.innerText = this.formatPrice(stats.todayRevenue);
-                if (weekSalesEl) weekSalesEl.innerText = this.formatPrice(stats.weekRevenue);
-                if (monthSalesEl) monthSalesEl.innerText = this.formatPrice(stats.monthRevenue);
-                if (totalSalesEl) totalSalesEl.innerText = this.formatPrice(stats.totalRevenue);
-            }
-        } catch (e) {
-            console.error("Error al obtener estadísticas de ventas", e);
-        }
-
-        let alerts = [];
-        try {
-            const res = await fetch('/api/products/alerts');
-            if (res.ok) {
-                alerts = await res.json();
-            }
-        } catch (e) {
-            console.error("Error al obtener alertas de inventario", e);
-        }
+        const totalProductsCount = (stats && stats.totalProducts !== undefined) ? stats.totalProducts : prods.length;
 
         // Dynamically Render Category Stats Cards in Grid
         if (grid) {
@@ -1538,7 +1534,7 @@ class JNStore {
                     <i class="fas fa-boxes"></i>
                 </div>
                 <div class="stat-info">
-                    <h4>${prods.length}</h4>
+                    <h4>${totalProductsCount}</h4>
                     <p>Total Productos</p>
                 </div>
             `;
@@ -1551,7 +1547,10 @@ class JNStore {
 
             mainNames.forEach((mainName, idx) => {
                 const visuals = this.getCategoryVisuals(mainName, idx);
-                const count = this.getProductsCountForCategory(mainName, prods);
+                let count = this.getProductsCountForCategory(mainName, prods);
+                if (count === 0 && stats && stats.categoryCounts && stats.categoryCounts[mainName]) {
+                    count = stats.categoryCounts[mainName];
+                }
 
                 const card = document.createElement('div');
                 card.className = 'stat-card';
@@ -1568,7 +1567,7 @@ class JNStore {
             });
 
             // 3. Card for Stock Alerts
-            const alertCount = alerts.length || 0;
+            const alertCount = (stats && stats.criticalStockCount !== undefined) ? stats.criticalStockCount : (alerts.length || 0);
             const isAlertDanger = alertCount > 0;
             const alertCard = document.createElement('div');
             alertCard.className = 'stat-card';
@@ -1586,7 +1585,7 @@ class JNStore {
 
         // Render detailed alerts list
         if (alertsList) {
-            if (alerts.length > 0) {
+            if (alerts && alerts.length > 0) {
                 alertsList.innerHTML = '';
                 alerts.forEach(alert => {
                     const isSevere = alert.stock <= 0;
@@ -1611,7 +1610,6 @@ class JNStore {
                         <p>¡Todo en orden! No hay productos con bajo inventario.</p>
                     </div>`;
             }
-        }
     }
 
     // Admin Inventory List Table
