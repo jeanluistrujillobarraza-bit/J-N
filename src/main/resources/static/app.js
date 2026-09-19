@@ -1610,6 +1610,7 @@ class JNStore {
                         <p>¡Todo en orden! No hay productos con bajo inventario.</p>
                     </div>`;
             }
+        }
     }
 
     // Admin Inventory List Table
