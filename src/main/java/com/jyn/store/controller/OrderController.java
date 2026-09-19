@@ -2,6 +2,7 @@ package com.jyn.store.controller;
 
 import com.jyn.store.dto.OrderRequest;
 import com.jyn.store.model.Order;
+import com.jyn.store.model.Product;
 import com.jyn.store.service.OrderService;
 import com.jyn.store.service.ProductService;
 import jakarta.servlet.http.HttpSession;
