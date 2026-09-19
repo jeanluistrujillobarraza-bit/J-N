@@ -137,10 +137,17 @@ class JNStore {
     }
 
     getMainCategories() {
+        const defaults = ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
         if (this.mainCategories && this.mainCategories.length > 0) {
-            return this.mainCategories.map(m => m.name);
+            const names = this.mainCategories.map(m => m.name);
+            defaults.forEach(d => {
+                if (!names.some(n => n.toLowerCase() === d.toLowerCase())) {
+                    names.push(d);
+                }
+            });
+            return names;
         }
-        return ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
+        return defaults;
     }
 
     renderNavigationCategories() {
@@ -832,7 +839,7 @@ class JNStore {
         }
 
         // Fetch original product to validate stock
-        const p = this.products.find(prod => prod.id === item.productId);
+        const p = (this.allProducts && this.allProducts.find(prod => prod.id === item.productId)) || this.products.find(prod => prod.id === item.productId);
         if (p) {
             let availableStock = 0;
             if (p.type === 'maquillaje') {
@@ -1399,8 +1406,10 @@ class JNStore {
         });
 
         if (tab === 'dashboard') {
+            this.fetchProducts(true);
             this.renderAdminDashboard();
         } else if (tab === 'products') {
+            this.fetchProducts(true);
             this.renderAdminInventory();
         } else if (tab === 'categories') {
             this.fetchMainCategories();
@@ -1446,8 +1455,9 @@ class JNStore {
         } catch (e) {
             console.error("Error al obtener estadísticas de ventas", e);
             // Fallback for inventory
-            const makeupCount = this.products.filter(p => p.type === 'maquillaje').length;
-            const clothingCount = this.products.filter(p => p.type === 'ropa').length;
+            const prods = (this.allProducts && this.allProducts.length > 0) ? this.allProducts : this.products;
+            const makeupCount = prods.filter(p => p.type === 'maquillaje').length;
+            const clothingCount = prods.filter(p => p.type === 'ropa').length;
             makeupEl.innerText = makeupCount;
             clothingEl.innerText = clothingCount;
         }
@@ -1498,7 +1508,20 @@ class JNStore {
 
         tbody.innerHTML = '';
 
-        this.products.forEach(p => {
+        const prods = (this.allProducts && this.allProducts.length > 0) ? this.allProducts : this.products;
+
+        if (!prods || prods.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--gray-dark); padding: 40px;">
+                        <i class="fas fa-box-open" style="font-size: 28px; margin-bottom: 10px; display: block; color: var(--gold);"></i>
+                        No hay productos registrados en el inventario. Haz clic en <strong>+ Nuevo Producto</strong> para agregar uno.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        prods.forEach(p => {
             const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
             
             let stockSummary = '';
@@ -1512,9 +1535,9 @@ class JNStore {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';"></td>
+                <td><img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
                 <td><strong>${p.name}</strong></td>
-                <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category}</span></td>
+                <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category || p.type}</span></td>
                 <td>${this.formatPrice(p.price)}</td>
                 <td>${stockSummary}</td>
                 <td>
@@ -1658,7 +1681,7 @@ class JNStore {
 
             if (productId) {
                 // Edit mode
-                const p = this.products.find(prod => prod.id === productId);
+                const p = (this.allProducts && this.allProducts.find(prod => prod.id === productId)) || this.products.find(prod => prod.id === productId);
                 if (p) {
                     const title = document.getElementById('product-form-title');
                     if (title) title.innerText = 'Editar Producto';
