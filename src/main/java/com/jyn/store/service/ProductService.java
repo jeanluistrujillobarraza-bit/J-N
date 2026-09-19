@@ -57,9 +57,22 @@ public class ProductService {
         if (mongoTemplate != null) {
             try {
                 for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
-                    Product p = mapDocToProduct(doc, false);
-                    if (p != null) {
-                        list.add(p);
+                    try {
+                        Product p = mapDocToProduct(doc, false);
+                        if (p != null) {
+                            list.add(p);
+                        }
+                    } catch (Exception docEx) {
+                        System.err.println("Error procesando documento individual de producto: " + docEx.getMessage());
+                        try {
+                            // Fallback básico para nunca perder el producto
+                            Product fallback = new Product();
+                            fallback.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
+                            fallback.setName(doc.get("name") != null ? String.valueOf(doc.get("name")) : "Producto");
+                            fallback.setCategory("General");
+                            fallback.setType("general");
+                            list.add(fallback);
+                        } catch (Exception ignored) {}
                     }
                 }
                 System.out.println("Cargados " + list.size() + " productos optimizados desde MongoDB.");
@@ -94,22 +107,29 @@ public class ProductService {
         return new ArrayList<>(active);
     }
 
+    private String getSafeString(org.bson.Document doc, String key) {
+        if (doc == null || key == null) return null;
+        Object val = doc.get(key);
+        if (val == null) return null;
+        return String.valueOf(val);
+    }
+
     private Product mapDocToProduct(org.bson.Document doc, boolean fullGallery) {
         if (doc == null) return null;
         Product p = new Product();
         p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
-        p.setName(doc.getString("name"));
-        p.setDescription(doc.getString("description"));
+        p.setName(getSafeString(doc, "name"));
+        p.setDescription(getSafeString(doc, "description"));
         
         Object priceObj = doc.get("price");
         if (priceObj instanceof Number) {
             p.setPrice(((Number) priceObj).doubleValue());
-        } else if (priceObj instanceof String) {
-            try { p.setPrice(Double.parseDouble((String) priceObj)); } catch (Exception ignored) {}
+        } else if (priceObj != null) {
+            try { p.setPrice(Double.parseDouble(String.valueOf(priceObj))); } catch (Exception ignored) {}
         }
         
-        String cat = doc.getString("category");
-        String type = doc.getString("type");
+        String cat = getSafeString(doc, "category");
+        String type = getSafeString(doc, "type");
         p.setCategory(cat != null ? cat : (type != null ? type : "General"));
         p.setType(type != null ? type : (cat != null ? cat.toLowerCase() : "general"));
         
@@ -119,6 +139,8 @@ public class ProductService {
         }
         if (stockObj instanceof Number) {
             p.setGeneralStock(((Number) stockObj).intValue());
+        } else if (stockObj != null) {
+            try { p.setGeneralStock(Integer.parseInt(String.valueOf(stockObj))); } catch (Exception ignored) {}
         }
         
         Object imgsObj = doc.get("images");
@@ -126,14 +148,17 @@ public class ProductService {
         if (imgsObj instanceof List) {
             for (Object o : (List<?>) imgsObj) {
                 if (o != null) {
-                    imgs.add(o.toString());
+                    imgs.add(String.valueOf(o));
                     if (!fullGallery) break; // Keep only 1 image for fast list loading
                 }
             }
-        } else if (imgsObj instanceof String && !((String) imgsObj).trim().isEmpty()) {
-            imgs.add((String) imgsObj);
-        } else if (doc.getString("image") != null && !doc.getString("image").trim().isEmpty()) {
-            imgs.add(doc.getString("image"));
+        } else if (imgsObj != null && !String.valueOf(imgsObj).trim().isEmpty()) {
+            imgs.add(String.valueOf(imgsObj));
+        } else {
+            String singleImg = getSafeString(doc, "image");
+            if (singleImg != null && !singleImg.trim().isEmpty()) {
+                imgs.add(singleImg);
+            }
         }
         p.setImages(imgs);
 
@@ -144,11 +169,13 @@ public class ProductService {
                 if (o instanceof org.bson.Document) {
                     org.bson.Document vDoc = (org.bson.Document) o;
                     SizeColorStock scs = new SizeColorStock();
-                    scs.setSize(vDoc.getString("size"));
-                    scs.setColor(vDoc.getString("color"));
+                    scs.setSize(getSafeString(vDoc, "size"));
+                    scs.setColor(getSafeString(vDoc, "color"));
                     Object vStock = vDoc.get("stock");
                     if (vStock instanceof Number) {
                         scs.setStock(((Number) vStock).intValue());
+                    } else if (vStock != null) {
+                        try { scs.setStock(Integer.parseInt(String.valueOf(vStock))); } catch (Exception ignored) {}
                     }
                     vars.add(scs);
                 }
@@ -156,8 +183,16 @@ public class ProductService {
             p.setVariations(vars);
         }
         
-        Boolean del = doc.getBoolean("deleted");
-        p.setDeleted(Boolean.TRUE.equals(del));
+        Object delObj = doc.get("deleted");
+        boolean isDeleted = false;
+        if (delObj instanceof Boolean) {
+            isDeleted = (Boolean) delObj;
+        } else if (delObj instanceof Number) {
+            isDeleted = ((Number) delObj).intValue() != 0;
+        } else if (delObj instanceof String) {
+            isDeleted = "true".equalsIgnoreCase((String) delObj) || "1".equals(delObj);
+        }
+        p.setDeleted(isDeleted);
         return p;
     }
 
