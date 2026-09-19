@@ -39,7 +39,10 @@ public class ProductController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String mainCategory,
             @RequestParam(required = false) String query) {
-        return ResponseEntity.ok(productService.searchProducts(category, mainCategory, query));
+        List<Product> products = productService.searchProducts(category, mainCategory, query);
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.maxAge(15, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
+                .body(products);
     }
 
     @GetMapping("/{id}")

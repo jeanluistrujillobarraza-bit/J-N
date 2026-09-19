@@ -25,6 +25,7 @@ class JNStore {
         this.allProducts = [];
         this.searchDebounceTimer = null;
         this.isLoadingCatalog = false;
+        this.fetchProductsPromise = null;
         
         // Detail Modal State
         this.selectedDetailProduct = null;
@@ -319,35 +320,44 @@ class JNStore {
         }
     }
 
-    // Fetch all products into in-memory cache and render instantly
+    // Fetch all products into in-memory cache and render instantly with deduplication
     async fetchProducts(force = false) {
-        try {
-            // If already loaded and not forced, instantly apply filter without hitting network
-            if (!force && this.allProducts && this.allProducts.length > 0) {
-                this.applyFiltersAndRender();
-                return;
-            }
-
-            if (!this.allProducts || this.allProducts.length === 0) {
-                this.isLoadingCatalog = true;
-                this.renderProductsSkeleton();
-            }
-
-            const res = await fetch('/api/products');
-            if (res.ok) {
-                this.allProducts = await res.json();
-                this.isLoadingCatalog = false;
-                this.applyFiltersAndRender();
-                if (this.isAdmin) {
-                    this.renderAdminInventory();
-                    this.renderAdminDashboard();
-                }
-            }
-        } catch (e) {
-            console.error("Error al obtener productos", e);
-            this.isLoadingCatalog = false;
-            this.renderProducts();
+        if (!force && this.fetchProductsPromise) {
+            return this.fetchProductsPromise;
         }
+
+        if (!force && this.allProducts && this.allProducts.length > 0) {
+            this.applyFiltersAndRender();
+            return;
+        }
+
+        if (!this.allProducts || this.allProducts.length === 0) {
+            this.isLoadingCatalog = true;
+            this.renderProductsSkeleton();
+        }
+
+        this.fetchProductsPromise = (async () => {
+            try {
+                const res = await fetch('/api/products');
+                if (res.ok) {
+                    this.allProducts = await res.json();
+                    this.isLoadingCatalog = false;
+                    this.applyFiltersAndRender();
+                    if (this.isAdmin) {
+                        this.renderAdminInventory();
+                        this.renderAdminDashboard();
+                    }
+                }
+            } catch (e) {
+                console.error("Error al obtener productos", e);
+                this.isLoadingCatalog = false;
+                this.renderProducts();
+            } finally {
+                this.fetchProductsPromise = null;
+            }
+        })();
+
+        return this.fetchProductsPromise;
     }
 
     // Instant local filtering (0ms latency, runs in memory)
@@ -432,14 +442,14 @@ class JNStore {
         grid.innerHTML = skeletonHtml;
     }
 
-    // Render client catalog with hardware acceleration & lazy loading
+    // Render client catalog with hardware acceleration, lazy loading and progressive chunking
     renderProducts() {
         const grid = document.getElementById('products-grid');
         if (!grid) return;
         
         grid.innerHTML = '';
         
-        if (this.products.length === 0) {
+        if (!this.products || this.products.length === 0) {
             grid.innerHTML = `
                 <div class="empty-cart-message" style="grid-column: 1/-1;">
                     <i class="fas fa-search"></i>
@@ -448,66 +458,86 @@ class JNStore {
             return;
         }
 
-        const fragment = document.createDocumentFragment();
+        const items = this.products;
+        const chunkSize = 32;
+        let currentIndex = 0;
 
-        this.products.forEach(p => {
-            const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
-            const isClothing = p.type === 'ropa';
-            
-            // Check overall stock
-            let isOutOfStock = false;
-            if (p.type === 'maquillaje') {
-                isOutOfStock = p.generalStock <= 0;
-            } else {
-                // For clothing, out of stock if all variations are 0
-                isOutOfStock = !p.variations || p.variations.length === 0 || p.variations.every(v => v.stock <= 0);
+        const renderChunk = () => {
+            const fragment = document.createDocumentFragment();
+            const nextIndex = Math.min(currentIndex + chunkSize, items.length);
+
+            for (let i = currentIndex; i < nextIndex; i++) {
+                const p = items[i];
+                if (!p) continue;
+
+                const mainImg = (p.images && p.images.length > 0 && p.images[0]) 
+                    ? p.images[0] 
+                    : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
+                
+                const isClothing = p.type === 'ropa';
+                
+                // Check overall stock
+                let isOutOfStock = false;
+                if (p.type === 'maquillaje') {
+                    isOutOfStock = (p.generalStock || 0) <= 0;
+                } else {
+                    isOutOfStock = !p.variations || p.variations.length === 0 || p.variations.every(v => (v.stock || 0) <= 0);
+                }
+
+                // Calculate stock display text
+                let stockHtml = '';
+                if (p.type === 'maquillaje') {
+                    if (isOutOfStock) {
+                        stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
+                    } else {
+                        stockHtml = `<span class="product-card-stock">Quedan: ${p.generalStock || 0} unidades</span>`;
+                    }
+                } else {
+                    const totalStock = p.variations ? p.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0) : 0;
+                    if (totalStock <= 0) {
+                        stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
+                    } else {
+                        const availableSizes = p.variations ? [...new Set(p.variations.filter(v => (v.stock || 0) > 0).map(v => v.size))] : [];
+                        const sizeText = availableSizes.length > 0 ? ` (Tallas: ${availableSizes.join(', ')})` : '';
+                        stockHtml = `<span class="product-card-stock">Quedan: ${totalStock} unidades${sizeText}</span>`;
+                    }
+                }
+
+                const safeName = (p.name || '').replace(/"/g, '&quot;');
+                const card = document.createElement('div');
+                card.className = 'product-card product-card-animate';
+                card.innerHTML = `
+                    <span class="product-card-badge ${p.type || 'general'}">${p.type || 'general'}</span>
+                    <div class="product-card-image" onclick="app.openProductDetails('${p.id}')">
+                        <img src="${mainImg}" alt="${safeName}" loading="lazy" decoding="async" onerror="if(!this.dataset.failed){this.dataset.failed='true';this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';}">
+                        <div class="quick-view-overlay">
+                            <span>Ver Detalles</span>
+                        </div>
+                    </div>
+                    <div class="product-card-info">
+                        <span class="product-card-category">${p.category || 'General'}</span>
+                        <h4 class="product-card-title">${p.name || ''}</h4>
+                        <span class="product-card-price">${this.formatPrice(p.price || 0)}</span>
+                        ${stockHtml}
+                        <div class="product-card-action">
+                            <button onclick="app.openProductDetails('${p.id}')" ${isOutOfStock ? 'disabled' : ''}>
+                                ${isOutOfStock ? 'Agotado' : 'Comprar'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                fragment.appendChild(card);
             }
 
-            // Calculate stock display text
-            let stockHtml = '';
-            if (p.type === 'maquillaje') {
-                if (isOutOfStock) {
-                    stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
-                } else {
-                    stockHtml = `<span class="product-card-stock">Quedan: ${p.generalStock} unidades</span>`;
-                }
-            } else {
-                const totalStock = p.variations ? p.variations.reduce((acc, curr) => acc + curr.stock, 0) : 0;
-                if (totalStock <= 0) {
-                    stockHtml = `<span class="product-card-stock out-of-stock">Agotado</span>`;
-                } else {
-                    const availableSizes = p.variations ? [...new Set(p.variations.filter(v => v.stock > 0).map(v => v.size))] : [];
-                    const sizeText = availableSizes.length > 0 ? ` (Tallas: ${availableSizes.join(', ')})` : '';
-                    stockHtml = `<span class="product-card-stock">Quedan: ${totalStock} unidades${sizeText}</span>`;
-                }
+            grid.appendChild(fragment);
+            currentIndex = nextIndex;
+
+            if (currentIndex < items.length) {
+                requestAnimationFrame(renderChunk);
             }
+        };
 
-            const card = document.createElement('div');
-            card.className = 'product-card product-card-animate';
-            card.innerHTML = `
-                <span class="product-card-badge ${p.type}">${p.type}</span>
-                <div class="product-card-image" onclick="app.openProductDetails('${p.id}')">
-                    <img src="${mainImg}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';">
-                    <div class="quick-view-overlay">
-                        <span>Ver Detalles</span>
-                    </div>
-                </div>
-                <div class="product-card-info">
-                    <span class="product-card-category">${p.category}</span>
-                    <h4 class="product-card-title">${p.name}</h4>
-                    <span class="product-card-price">${this.formatPrice(p.price)}</span>
-                    ${stockHtml}
-                    <div class="product-card-action">
-                        <button onclick="app.openProductDetails('${p.id}')" ${isOutOfStock ? 'disabled' : ''}>
-                            ${isOutOfStock ? 'Agotado' : 'Comprar'}
-                        </button>
-                    </div>
-                </div>
-            `;
-            fragment.appendChild(card);
-        });
-
-        grid.appendChild(fragment);
+        renderChunk();
     }
 
     // Open detail modal instantly and fetch full gallery in background
@@ -1633,34 +1663,57 @@ class JNStore {
             return;
         }
 
-        prods.forEach(p => {
-            const mainImg = p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
-            
-            let stockSummary = '';
-            if (p.type === 'maquillaje') {
-                stockSummary = `${p.generalStock} unds`;
-            } else {
-                // Sum all variation stocks
-                const sum = p.variations ? p.variations.reduce((acc, curr) => acc + curr.stock, 0) : 0;
-                stockSummary = `${sum} unds (${p.variations ? p.variations.length : 0} var)`;
+        const items = prods;
+        const chunkSize = 40;
+        let currentIndex = 0;
+
+        const renderTableChunk = () => {
+            const fragment = document.createDocumentFragment();
+            const nextIndex = Math.min(currentIndex + chunkSize, items.length);
+
+            for (let i = currentIndex; i < nextIndex; i++) {
+                const p = items[i];
+                if (!p) continue;
+
+                const mainImg = (p.images && p.images.length > 0 && p.images[0]) 
+                    ? p.images[0] 
+                    : 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';
+                
+                let stockSummary = '';
+                if (p.type === 'maquillaje') {
+                    stockSummary = `${p.generalStock || 0} unds`;
+                } else {
+                    const sum = p.variations ? p.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0) : 0;
+                    stockSummary = `${sum} unds (${p.variations ? p.variations.length : 0} var)`;
+                }
+
+                const safeName = (p.name || '').replace(/"/g, '&quot;');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><img src="${mainImg}" alt="${safeName}" loading="lazy" decoding="async" onerror="if(!this.dataset.failed){this.dataset.failed='true';this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';}" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
+                    <td><strong>${p.name || ''}</strong></td>
+                    <td><span class="product-card-badge ${p.type || 'general'}" style="position:static; padding: 2px 6px;">${p.category || p.type || 'General'}</span></td>
+                    <td>${this.formatPrice(p.price || 0)}</td>
+                    <td>${stockSummary}</td>
+                    <td>
+                        <div class="admin-table-actions">
+                            <button class="action-icon-btn edit" onclick="app.openProductModal('${p.id}')"><i class="fas fa-edit"></i></button>
+                            <button class="action-icon-btn delete" onclick="app.handleDeleteProduct('${p.id}')"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                `;
+                fragment.appendChild(tr);
             }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><img src="${mainImg}" alt="${p.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=600&auto=format&fit=crop';" style="width: 45px; height: 45px; border-radius: 6px; object-fit: cover;"></td>
-                <td><strong>${p.name}</strong></td>
-                <td><span class="product-card-badge ${p.type}" style="position:static; padding: 2px 6px;">${p.category || p.type}</span></td>
-                <td>${this.formatPrice(p.price)}</td>
-                <td>${stockSummary}</td>
-                <td>
-                    <div class="admin-table-actions">
-                        <button class="action-icon-btn edit" onclick="app.openProductModal('${p.id}')"><i class="fas fa-edit"></i></button>
-                        <button class="action-icon-btn delete" onclick="app.handleDeleteProduct('${p.id}')"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+            tbody.appendChild(fragment);
+            currentIndex = nextIndex;
+
+            if (currentIndex < items.length) {
+                requestAnimationFrame(renderTableChunk);
+            }
+        };
+
+        renderTableChunk();
     }
 
     // Admin Main Categories List
