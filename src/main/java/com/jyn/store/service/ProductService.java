@@ -56,20 +56,8 @@ public class ProductService {
         
         if (mongoTemplate != null) {
             try {
-                // Projection ultra-rápida: trae todos los datos y solo la imagen principal (slice: 1)
-                // Esto reduce el peso de 468MB a solo 4MB, evitando timeouts de red
-                org.bson.conversions.Bson projection = com.mongodb.client.model.Projections.fields(
-                    com.mongodb.client.model.Projections.include("_id", "name", "description", "price", "category", "type", "generalStock", "variations", "deleted"),
-                    com.mongodb.client.model.Projections.slice("images", 1)
-                );
-
-                List<org.bson.Document> docs = mongoTemplate.getCollection("products")
-                    .find()
-                    .projection(projection)
-                    .into(new ArrayList<>());
-
-                for (org.bson.Document doc : docs) {
-                    Product p = mapDocToProduct(doc);
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
+                    Product p = mapDocToProduct(doc, false);
                     if (p != null) {
                         list.add(p);
                     }
@@ -106,7 +94,7 @@ public class ProductService {
         return new ArrayList<>(active);
     }
 
-    private Product mapDocToProduct(org.bson.Document doc) {
+    private Product mapDocToProduct(org.bson.Document doc, boolean fullGallery) {
         if (doc == null) return null;
         Product p = new Product();
         p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
@@ -134,21 +122,20 @@ public class ProductService {
         }
         
         Object imgsObj = doc.get("images");
+        List<String> imgs = new ArrayList<>();
         if (imgsObj instanceof List) {
-            List<String> imgs = new ArrayList<>();
             for (Object o : (List<?>) imgsObj) {
-                if (o != null) imgs.add(o.toString());
+                if (o != null) {
+                    imgs.add(o.toString());
+                    if (!fullGallery) break; // Keep only 1 image for fast list loading
+                }
             }
-            p.setImages(imgs);
-        } else if (imgsObj instanceof String) {
-            List<String> imgs = new ArrayList<>();
+        } else if (imgsObj instanceof String && !((String) imgsObj).trim().isEmpty()) {
             imgs.add((String) imgsObj);
-            p.setImages(imgs);
-        } else if (doc.getString("image") != null) {
-            List<String> imgs = new ArrayList<>();
+        } else if (doc.getString("image") != null && !doc.getString("image").trim().isEmpty()) {
             imgs.add(doc.getString("image"));
-            p.setImages(imgs);
         }
+        p.setImages(imgs);
 
         Object varsObj = doc.get("variations");
         if (varsObj instanceof List) {
@@ -202,7 +189,7 @@ public class ProductService {
                     doc = mongoTemplate.getCollection("products").find(new org.bson.Document("_id", id)).first();
                 }
                 if (doc != null) {
-                    return Optional.ofNullable(mapDocToProduct(doc));
+                    return Optional.ofNullable(mapDocToProduct(doc, true));
                 }
             } catch (Exception e) {
                 System.err.println("Error buscando producto por ID: " + e.getMessage());
