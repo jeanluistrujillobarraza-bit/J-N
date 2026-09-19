@@ -14,11 +14,11 @@ public class MongoConfig {
         return builder -> {
             builder.applyToSslSettings(ssl -> ssl.enabled(true));
             builder.applyToSocketSettings(socket -> {
-                socket.connectTimeout(15, TimeUnit.SECONDS);
-                socket.readTimeout(15, TimeUnit.SECONDS);
+                socket.connectTimeout(60, TimeUnit.SECONDS);
+                socket.readTimeout(120, TimeUnit.SECONDS);
             });
             builder.applyToClusterSettings(cluster -> {
-                cluster.serverSelectionTimeout(15, TimeUnit.SECONDS);
+                cluster.serverSelectionTimeout(60, TimeUnit.SECONDS);
             });
         };
     }

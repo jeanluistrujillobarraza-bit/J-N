@@ -38,7 +38,7 @@ public class ProductService {
         if ((list == null || list.isEmpty()) && mongoTemplate != null) {
             try {
                 list = new ArrayList<>();
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().batchSize(100)) {
                     Product p = new Product();
                     p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
                     p.setName(doc.getString("name"));
@@ -66,6 +66,25 @@ public class ProductService {
                             if (o != null) imgs.add(o.toString());
                         }
                         p.setImages(imgs);
+                    }
+
+                    Object varsObj = doc.get("variations");
+                    if (varsObj instanceof List) {
+                        List<SizeColorStock> vars = new ArrayList<>();
+                        for (Object o : (List<?>) varsObj) {
+                            if (o instanceof org.bson.Document) {
+                                org.bson.Document vDoc = (org.bson.Document) o;
+                                SizeColorStock scs = new SizeColorStock();
+                                scs.setSize(vDoc.getString("size"));
+                                scs.setColor(vDoc.getString("color"));
+                                Object vStock = vDoc.get("stock");
+                                if (vStock instanceof Number) {
+                                    scs.setStock(((Number) vStock).intValue());
+                                }
+                                vars.add(scs);
+                            }
+                        }
+                        p.setVariations(vars);
                     }
                     
                     Boolean del = doc.getBoolean("deleted");
