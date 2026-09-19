@@ -137,17 +137,10 @@ class JNStore {
     }
 
     getMainCategories() {
-        const defaults = ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
         if (this.mainCategories && this.mainCategories.length > 0) {
-            const names = this.mainCategories.map(m => m.name);
-            defaults.forEach(d => {
-                if (!names.some(n => n.toLowerCase() === d.toLowerCase())) {
-                    names.push(d);
-                }
-            });
-            return names;
+            return this.mainCategories.map(m => m.name);
         }
-        return defaults;
+        return ['Maquillaje'];
     }
 
     renderNavigationCategories() {
