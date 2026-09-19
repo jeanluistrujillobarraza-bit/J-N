@@ -405,19 +405,20 @@ public class OrderController {
                 categoryCounts.put(key, categoryCounts.getOrDefault(key, 0L) + 1L);
             }
 
-            return ResponseEntity.ok(Map.of(
-                "totalRevenue", totalRevenue,
-                "todayRevenue", todayRevenue,
-                "weekRevenue", weekRevenue,
-                "monthRevenue", monthRevenue,
-                "pendingOrders", pendingOrdersCount,
-                "completedOrders", completedOrdersCount,
-                "totalProducts", totalProducts,
-                "makeupCount", makeupCount,
-                "clothingCount", clothingCount,
-                "categoryCounts", categoryCounts,
-                "criticalStockCount", criticalStockCount
-            ));
+            Map<String, Object> statsResponse = new java.util.HashMap<>();
+            statsResponse.put("totalRevenue", totalRevenue);
+            statsResponse.put("todayRevenue", todayRevenue);
+            statsResponse.put("weekRevenue", weekRevenue);
+            statsResponse.put("monthRevenue", monthRevenue);
+            statsResponse.put("pendingOrders", pendingOrdersCount);
+            statsResponse.put("completedOrders", completedOrdersCount);
+            statsResponse.put("totalProducts", totalProducts);
+            statsResponse.put("makeupCount", makeupCount);
+            statsResponse.put("clothingCount", clothingCount);
+            statsResponse.put("categoryCounts", categoryCounts);
+            statsResponse.put("criticalStockCount", criticalStockCount);
+
+            return ResponseEntity.ok(statsResponse);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error al obtener estadísticas: " + e.getMessage()));
