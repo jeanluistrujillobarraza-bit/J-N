@@ -517,8 +517,8 @@ class JNStore {
         grid.appendChild(fragment);
     }
 
-    // Open detail modal instantly
-    openProductDetails(id) {
+    // Open detail modal instantly and fetch full gallery in background
+    async openProductDetails(id) {
         const product = (this.allProducts && this.allProducts.find(p => p.id === id)) || this.products.find(p => p.id === id);
         if (!product) return;
 
@@ -530,6 +530,18 @@ class JNStore {
         const modal = document.getElementById('product-detail-modal');
         modal.classList.remove('hidden');
         this.renderProductDetailsContent();
+
+        // Si el producto tiene más imágenes en MongoDB, cargarlas de forma transparente
+        try {
+            const res = await fetch(`/api/products/${id}`);
+            if (res.ok) {
+                const fullProduct = await res.json();
+                if (this.selectedDetailProduct && this.selectedDetailProduct.id === id) {
+                    this.selectedDetailProduct = fullProduct;
+                    this.renderProductDetailsContent();
+                }
+            }
+        } catch (e) {}
     }
 
     renderProductDetailsContent() {

@@ -28,73 +28,32 @@ public class ProductService {
 
     public List<Product> getAllProducts() {
         List<Product> list = new ArrayList<>();
-        try {
-            list = productRepository.findAll();
-        } catch (Exception e) {
-            System.err.println("Error en productRepository.findAll(): " + e.getMessage());
+        
+        if (mongoTemplate != null) {
+            try {
+                // Projection ultra-rápida: trae todos los datos y solo la imagen principal (slice: 1)
+                // Esto reduce el peso de 468MB a solo 4MB, evitando timeouts de red
+                org.bson.conversions.Bson projection = com.mongodb.client.model.Projections.fields(
+                    com.mongodb.client.model.Projections.include("_id", "name", "description", "price", "category", "type", "generalStock", "variations", "deleted"),
+                    com.mongodb.client.model.Projections.slice("images", 1)
+                );
+
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().projection(projection).batchSize(100)) {
+                    Product p = mapDocToProduct(doc);
+                    if (p != null) {
+                        list.add(p);
+                    }
+                }
+                System.out.println("Cargados " + list.size() + " productos optimizados desde MongoDB.");
+            } catch (Exception ex) {
+                System.err.println("Error en lectura optimizada de MongoDB: " + ex.getMessage());
+            }
         }
 
-        // Fallback: Si list está vacío o falló la deserialización, extraer directamente los documentos BSON
-        if ((list == null || list.isEmpty()) && mongoTemplate != null) {
+        if (list.isEmpty()) {
             try {
-                list = new ArrayList<>();
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find().batchSize(100)) {
-                    Product p = new Product();
-                    p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
-                    p.setName(doc.getString("name"));
-                    p.setDescription(doc.getString("description"));
-                    
-                    Object priceObj = doc.get("price");
-                    if (priceObj instanceof Number) {
-                        p.setPrice(((Number) priceObj).doubleValue());
-                    } else if (priceObj instanceof String) {
-                        try { p.setPrice(Double.parseDouble((String) priceObj)); } catch (Exception ignored) {}
-                    }
-                    
-                    p.setCategory(doc.getString("category"));
-                    p.setType(doc.getString("type"));
-                    
-                    Object stockObj = doc.get("generalStock");
-                    if (stockObj instanceof Number) {
-                        p.setGeneralStock(((Number) stockObj).intValue());
-                    }
-                    
-                    Object imgsObj = doc.get("images");
-                    if (imgsObj instanceof List) {
-                        List<String> imgs = new ArrayList<>();
-                        for (Object o : (List<?>) imgsObj) {
-                            if (o != null) imgs.add(o.toString());
-                        }
-                        p.setImages(imgs);
-                    }
-
-                    Object varsObj = doc.get("variations");
-                    if (varsObj instanceof List) {
-                        List<SizeColorStock> vars = new ArrayList<>();
-                        for (Object o : (List<?>) varsObj) {
-                            if (o instanceof org.bson.Document) {
-                                org.bson.Document vDoc = (org.bson.Document) o;
-                                SizeColorStock scs = new SizeColorStock();
-                                scs.setSize(vDoc.getString("size"));
-                                scs.setColor(vDoc.getString("color"));
-                                Object vStock = vDoc.get("stock");
-                                if (vStock instanceof Number) {
-                                    scs.setStock(((Number) vStock).intValue());
-                                }
-                                vars.add(scs);
-                            }
-                        }
-                        p.setVariations(vars);
-                    }
-                    
-                    Boolean del = doc.getBoolean("deleted");
-                    p.setDeleted(Boolean.TRUE.equals(del));
-                    list.add(p);
-                }
-                System.out.println("Recuperados " + list.size() + " productos mediante fallback BSON.");
-            } catch (Exception ex) {
-                System.err.println("Error en fallback BSON: " + ex.getMessage());
-            }
+                list = productRepository.findAll();
+            } catch (Exception ignored) {}
         }
 
         if (list == null || list.isEmpty()) {
@@ -108,12 +67,66 @@ public class ProductService {
             }
         }
 
-        // Si todos estuvieran marcados con deleted por error, devolver todos para no ocultar el catálogo
         if (active.isEmpty() && !list.isEmpty()) {
             return list;
         }
 
         return active;
+    }
+
+    private Product mapDocToProduct(org.bson.Document doc) {
+        if (doc == null) return null;
+        Product p = new Product();
+        p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
+        p.setName(doc.getString("name"));
+        p.setDescription(doc.getString("description"));
+        
+        Object priceObj = doc.get("price");
+        if (priceObj instanceof Number) {
+            p.setPrice(((Number) priceObj).doubleValue());
+        } else if (priceObj instanceof String) {
+            try { p.setPrice(Double.parseDouble((String) priceObj)); } catch (Exception ignored) {}
+        }
+        
+        p.setCategory(doc.getString("category"));
+        p.setType(doc.getString("type"));
+        
+        Object stockObj = doc.get("generalStock");
+        if (stockObj instanceof Number) {
+            p.setGeneralStock(((Number) stockObj).intValue());
+        }
+        
+        Object imgsObj = doc.get("images");
+        if (imgsObj instanceof List) {
+            List<String> imgs = new ArrayList<>();
+            for (Object o : (List<?>) imgsObj) {
+                if (o != null) imgs.add(o.toString());
+            }
+            p.setImages(imgs);
+        }
+
+        Object varsObj = doc.get("variations");
+        if (varsObj instanceof List) {
+            List<SizeColorStock> vars = new ArrayList<>();
+            for (Object o : (List<?>) varsObj) {
+                if (o instanceof org.bson.Document) {
+                    org.bson.Document vDoc = (org.bson.Document) o;
+                    SizeColorStock scs = new SizeColorStock();
+                    scs.setSize(vDoc.getString("size"));
+                    scs.setColor(vDoc.getString("color"));
+                    Object vStock = vDoc.get("stock");
+                    if (vStock instanceof Number) {
+                        scs.setStock(((Number) vStock).intValue());
+                    }
+                    vars.add(scs);
+                }
+            }
+            p.setVariations(vars);
+        }
+        
+        Boolean del = doc.getBoolean("deleted");
+        p.setDeleted(Boolean.TRUE.equals(del));
+        return p;
     }
 
     public List<Product> getDeletedProducts() {
@@ -133,6 +146,23 @@ public class ProductService {
     }
 
     public Optional<Product> getProductById(String id) {
+        if (id == null) return Optional.empty();
+        if (mongoTemplate != null) {
+            try {
+                org.bson.Document doc = null;
+                if (org.bson.types.ObjectId.isValid(id)) {
+                    doc = mongoTemplate.getCollection("products").find(new org.bson.Document("_id", new org.bson.types.ObjectId(id))).first();
+                }
+                if (doc == null) {
+                    doc = mongoTemplate.getCollection("products").find(new org.bson.Document("_id", id)).first();
+                }
+                if (doc != null) {
+                    return Optional.ofNullable(mapDocToProduct(doc));
+                }
+            } catch (Exception e) {
+                System.err.println("Error buscando producto por ID: " + e.getMessage());
+            }
+        }
         return productRepository.findById(id);
     }
 
