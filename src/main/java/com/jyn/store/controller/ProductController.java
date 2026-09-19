@@ -136,6 +136,34 @@ public class ProductController {
 
 
 
+    @Autowired(required = false)
+    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
+    @GetMapping("/diagnose-db")
+    public ResponseEntity<?> diagnoseDb() {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        try {
+            if (mongoTemplate != null) {
+                String dbName = mongoTemplate.getDb().getName();
+                result.put("currentDatabase", dbName);
+                
+                java.util.Set<String> collections = mongoTemplate.getCollectionNames();
+                result.put("collections", collections);
+                
+                Map<String, Long> counts = new java.util.LinkedHashMap<>();
+                for (String col : collections) {
+                    counts.put(col, mongoTemplate.getCollection(col).countDocuments());
+                }
+                result.put("counts", counts);
+            }
+            List<Product> prods = productService.getAllProducts();
+            result.put("productService_getAllProducts_count", prods.size());
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+        }
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/upload-images")
     public ResponseEntity<?> uploadImages(@RequestParam("files") MultipartFile[] files, HttpSession session) {
         if (isNotAdmin(session)) {
