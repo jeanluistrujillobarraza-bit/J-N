@@ -1427,13 +1427,62 @@ class JNStore {
         }
     }
 
+    getCategoryVisuals(name, index = 0) {
+        const n = (name || '').toLowerCase();
+        if (n.includes('maquillaj') || n.includes('makeup') || n.includes('labial') || n.includes('cosmetic') || n.includes('sombras') || n.includes('rostro')) {
+            return { icon: 'fas fa-palette', bg: 'rgba(249, 213, 227, 0.6)', color: 'var(--accent-pink)' };
+        }
+        if (n.includes('ropa') || n.includes('cloth') || n.includes('vestid') || n.includes('moda') || n.includes('blusa') || n.includes('pantalon') || n.includes('falda')) {
+            return { icon: 'fas fa-tshirt', bg: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold)' };
+        }
+        if (n.includes('accesori') || n.includes('joya') || n.includes('reloj') || n.includes('arete') || n.includes('collar') || n.includes('pulsera')) {
+            return { icon: 'fas fa-gem', bg: 'rgba(114, 9, 183, 0.15)', color: '#7209b7' };
+        }
+        if (n.includes('perfum') || n.includes('fraganc') || n.includes('aroma') || n.includes('locion')) {
+            return { icon: 'fas fa-spray-can', bg: 'rgba(76, 201, 240, 0.15)', color: '#4cc9f0' };
+        }
+        if (n.includes('zapat') || n.includes('calzad') || n.includes('tenis') || n.includes('tacon') || n.includes('sandalia')) {
+            return { icon: 'fas fa-shoe-prints', bg: 'rgba(247, 37, 133, 0.15)', color: '#f72585' };
+        }
+        if (n.includes('bolso') || n.includes('cartera') || n.includes('mochila') || n.includes('billetera')) {
+            return { icon: 'fas fa-shopping-bag', bg: 'rgba(251, 133, 0, 0.15)', color: '#fb8500' };
+        }
+        if (n.includes('cuidado') || n.includes('skin') || n.includes('facial') || n.includes('crema')) {
+            return { icon: 'fas fa-spa', bg: 'rgba(67, 97, 238, 0.15)', color: '#4361ee' };
+        }
+        
+        const palette = [
+            { icon: 'fas fa-tag', bg: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold)' },
+            { icon: 'fas fa-layer-group', bg: 'rgba(114, 9, 183, 0.15)', color: '#7209b7' },
+            { icon: 'fas fa-box-open', bg: 'rgba(46, 196, 182, 0.15)', color: '#2ec4b6' },
+            { icon: 'fas fa-heart', bg: 'rgba(247, 37, 133, 0.15)', color: '#f72585' },
+            { icon: 'fas fa-magic', bg: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }
+        ];
+        return palette[index % palette.length];
+    }
+
+    getProductsCountForCategory(mainName, prodsList) {
+        if (!prodsList || prodsList.length === 0) return 0;
+        const mainNorm = (mainName || '').trim().toLowerCase();
+        
+        const subCatNames = (this.categories || [])
+            .filter(c => (c.parentCategory || '').trim().toLowerCase() === mainNorm)
+            .map(c => (c.name || '').trim().toLowerCase());
+
+        return prodsList.filter(p => {
+            const pTypeNorm = (p.type || '').trim().toLowerCase();
+            const pCatNorm = (p.category || '').trim().toLowerCase();
+            
+            if (pTypeNorm === mainNorm || pCatNorm === mainNorm) return true;
+            if (subCatNames.length > 0 && (subCatNames.includes(pCatNorm) || subCatNames.includes(pTypeNorm))) return true;
+            return false;
+        }).length;
+    }
+
     // Admin Dashboard Render
     async renderAdminDashboard() {
-        const makeupEl = document.getElementById('stat-makeup-count');
-        const clothingEl = document.getElementById('stat-clothing-count');
-        const alertEl = document.getElementById('stat-alert-count');
+        const grid = document.getElementById('inventory-stats-grid');
         const alertsList = document.getElementById('alerts-list');
-        const alertsBg = document.getElementById('stat-alerts-bg');
 
         // Sales Elements
         const todaySalesEl = document.getElementById('stat-sales-today');
@@ -1441,17 +1490,23 @@ class JNStore {
         const monthSalesEl = document.getElementById('stat-sales-month');
         const totalSalesEl = document.getElementById('stat-sales-total');
 
-        if (!makeupEl) return;
+        // Make sure data is loaded
+        if (!this.mainCategories || this.mainCategories.length === 0) {
+            await this.fetchMainCategories();
+        }
+        if (!this.categories || this.categories.length === 0) {
+            await this.fetchCategories();
+        }
+        if (!this.allProducts || this.allProducts.length === 0) {
+            await this.fetchProducts(true);
+        }
+
+        const prods = (this.allProducts && this.allProducts.length > 0) ? this.allProducts : this.products;
 
         try {
             const statsRes = await fetch('/api/orders/stats');
             if (statsRes.ok) {
                 const stats = await statsRes.json();
-                
-                makeupEl.innerText = stats.makeupCount;
-                clothingEl.innerText = stats.clothingCount;
-                alertEl.innerText = stats.criticalStockCount;
-                
                 if (todaySalesEl) todaySalesEl.innerText = this.formatPrice(stats.todayRevenue);
                 if (weekSalesEl) weekSalesEl.innerText = this.formatPrice(stats.weekRevenue);
                 if (monthSalesEl) monthSalesEl.innerText = this.formatPrice(stats.monthRevenue);
@@ -1459,22 +1514,79 @@ class JNStore {
             }
         } catch (e) {
             console.error("Error al obtener estadísticas de ventas", e);
-            // Fallback for inventory
-            const prods = (this.allProducts && this.allProducts.length > 0) ? this.allProducts : this.products;
-            const makeupCount = prods.filter(p => p.type === 'maquillaje').length;
-            const clothingCount = prods.filter(p => p.type === 'ropa').length;
-            makeupEl.innerText = makeupCount;
-            clothingEl.innerText = clothingCount;
         }
 
+        let alerts = [];
         try {
-            // Get alerts list
             const res = await fetch('/api/products/alerts');
-            const alerts = await res.json();
-            
+            if (res.ok) {
+                alerts = await res.json();
+            }
+        } catch (e) {
+            console.error("Error al obtener alertas de inventario", e);
+        }
+
+        // Dynamically Render Category Stats Cards in Grid
+        if (grid) {
+            grid.innerHTML = '';
+
+            // 1. Card Total Productos
+            const totalCard = document.createElement('div');
+            totalCard.className = 'stat-card';
+            totalCard.innerHTML = `
+                <div class="stat-icon" style="background-color: rgba(30, 41, 59, 0.1); color: #1e293b;">
+                    <i class="fas fa-boxes"></i>
+                </div>
+                <div class="stat-info">
+                    <h4>${prods.length}</h4>
+                    <p>Total Productos</p>
+                </div>
+            `;
+            grid.appendChild(totalCard);
+
+            // 2. Dynamic Card for Each Main Category
+            const mainNames = (this.mainCategories && this.mainCategories.length > 0)
+                ? this.mainCategories.map(m => m.name)
+                : ['Maquillaje', 'Ropa', 'Accesorios', 'Perfumes', 'Zapatos'];
+
+            mainNames.forEach((mainName, idx) => {
+                const visuals = this.getCategoryVisuals(mainName, idx);
+                const count = this.getProductsCountForCategory(mainName, prods);
+
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div class="stat-icon" style="background-color: ${visuals.bg}; color: ${visuals.color};">
+                        <i class="${visuals.icon}"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4>${count}</h4>
+                        <p>${mainName}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            // 3. Card for Stock Alerts
+            const alertCount = alerts.length || 0;
+            const isAlertDanger = alertCount > 0;
+            const alertCard = document.createElement('div');
+            alertCard.className = 'stat-card';
+            alertCard.innerHTML = `
+                <div class="stat-icon ${isAlertDanger ? 'alert-bg danger-alert' : 'alert-bg'}" id="stat-alerts-bg">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-info">
+                    <h4 id="stat-alert-count">${alertCount}</h4>
+                    <p>Alertas de Stock</p>
+                </div>
+            `;
+            grid.appendChild(alertCard);
+        }
+
+        // Render detailed alerts list
+        if (alertsList) {
             if (alerts.length > 0) {
-                alertsBg.className = "stat-icon alert-bg danger-alert";
-                
                 alertsList.innerHTML = '';
                 alerts.forEach(alert => {
                     const isSevere = alert.stock <= 0;
@@ -1493,16 +1605,12 @@ class JNStore {
                     alertsList.appendChild(item);
                 });
             } else {
-                alertsBg.className = "stat-icon alert-bg";
                 alertsList.innerHTML = `
                     <div class="no-alerts-placeholder">
                         <i class="fas fa-check-circle"></i>
                         <p>¡Todo en orden! No hay productos con bajo inventario.</p>
                     </div>`;
             }
-
-        } catch (e) {
-            console.error("Error al obtener alertas de inventario", e);
         }
     }
 
@@ -2004,7 +2112,8 @@ class JNStore {
                 this.cancelEditMainCategory();
                 await this.fetchMainCategories();
                 await this.fetchCategories();
-                await this.fetchProducts();
+                await this.fetchProducts(true);
+                await this.renderAdminDashboard();
                 alert(isEditing ? `Categoría principal actualizada a "${name}".` : `Categoría principal "${name}" creada exitosamente.`);
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -2033,7 +2142,8 @@ class JNStore {
             if (res.ok) {
                 await this.fetchMainCategories();
                 await this.fetchCategories();
-                await this.fetchProducts();
+                await this.fetchProducts(true);
+                await this.renderAdminDashboard();
                 alert('Categoría principal eliminada exitosamente.');
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -2118,7 +2228,8 @@ class JNStore {
             if (res.ok) {
                 this.cancelEditCategory();
                 await this.fetchCategories();
-                await this.fetchProducts(); // Refresh products in case category name changed
+                await this.fetchProducts(true);
+                await this.renderAdminDashboard();
                 alert(isEditing ? `Categoría actualizada exitosamente a "${name}".` : `Categoría "${name}" creada exitosamente.`);
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -2146,6 +2257,8 @@ class JNStore {
 
             if (res.ok) {
                 await this.fetchCategories();
+                await this.fetchProducts(true);
+                await this.renderAdminDashboard();
                 alert('Categoría eliminada exitosamente.');
             } else {
                 const errData = await res.json().catch(() => ({}));

@@ -385,9 +385,25 @@ public class OrderController {
                 }
             }
             
-            long makeupCount = productService.getAllProducts().stream().filter(p -> "maquillaje".equalsIgnoreCase(p.getType())).count();
-            long clothingCount = productService.getAllProducts().stream().filter(p -> "ropa".equalsIgnoreCase(p.getType())).count();
+            List<Product> allProds = productService.getAllProducts();
+            long totalProducts = allProds.size();
+            long makeupCount = allProds.stream().filter(p -> 
+                (p.getType() != null && p.getType().toLowerCase().contains("maquillaje")) ||
+                (p.getCategory() != null && p.getCategory().toLowerCase().contains("maquillaje"))
+            ).count();
+            long clothingCount = allProds.stream().filter(p -> 
+                (p.getType() != null && p.getType().toLowerCase().contains("ropa")) ||
+                (p.getCategory() != null && p.getCategory().toLowerCase().contains("ropa"))
+            ).count();
             long criticalStockCount = productService.getStockAlerts().size();
+
+            Map<String, Long> categoryCounts = new java.util.HashMap<>();
+            for (Product p : allProds) {
+                String cat = p.getCategory();
+                String type = p.getType();
+                String key = (cat != null && !cat.trim().isEmpty()) ? cat.trim() : (type != null && !type.trim().isEmpty() ? type.trim() : "General");
+                categoryCounts.put(key, categoryCounts.getOrDefault(key, 0L) + 1L);
+            }
 
             return ResponseEntity.ok(Map.of(
                 "totalRevenue", totalRevenue,
@@ -396,8 +412,10 @@ public class OrderController {
                 "monthRevenue", monthRevenue,
                 "pendingOrders", pendingOrdersCount,
                 "completedOrders", completedOrdersCount,
+                "totalProducts", totalProducts,
                 "makeupCount", makeupCount,
                 "clothingCount", clothingCount,
+                "categoryCounts", categoryCounts,
                 "criticalStockCount", criticalStockCount
             ));
         } catch (Exception e) {
