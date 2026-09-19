@@ -145,6 +145,7 @@ public class ProductController {
     @GetMapping("/diagnose-db")
     public ResponseEntity<?> diagnoseDb() {
         Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("version", "2026-09-19-v4-full-breakdown");
         try {
             if (mongoTemplate != null) {
                 String dbName = mongoTemplate.getDb().getName();
@@ -158,13 +159,48 @@ public class ProductController {
                     counts.put(col, mongoTemplate.getCollection(col).countDocuments());
                 }
                 result.put("counts", counts);
+
+                long deletedTrue = mongoTemplate.getCollection("products").countDocuments(new org.bson.Document("deleted", true));
+                long deletedFalse = mongoTemplate.getCollection("products").countDocuments(new org.bson.Document("deleted", false));
+                long deletedMissing = mongoTemplate.getCollection("products").countDocuments(new org.bson.Document("deleted", new org.bson.Document("$exists", false)));
+                
+                Map<String, Object> delStats = new java.util.LinkedHashMap<>();
+                delStats.put("deleted_true", deletedTrue);
+                delStats.put("deleted_false", deletedFalse);
+                delStats.put("deleted_missing", deletedMissing);
+                result.put("deleted_breakdown", delStats);
             }
             List<Product> prods = productService.getAllProducts();
             result.put("productService_getAllProducts_count", prods.size());
+            
+            List<Product> deletedProds = productService.getDeletedProducts();
+            result.put("productService_deletedProducts_count", deletedProds.size());
         } catch (Exception e) {
             result.put("error", e.getMessage());
         }
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/restore-all-in-db")
+    public ResponseEntity<?> restoreAllInDb() {
+        try {
+            if (mongoTemplate != null) {
+                var updateResult = mongoTemplate.getCollection("products").updateMany(
+                    new org.bson.Document(),
+                    new org.bson.Document("$set", new org.bson.Document("deleted", false))
+                );
+                productService.invalidateCache();
+                Map<String, Object> res = new java.util.LinkedHashMap<>();
+                res.put("message", "Todos los productos marcados como activos");
+                res.put("matchedCount", updateResult.getMatchedCount());
+                res.put("modifiedCount", updateResult.getModifiedCount());
+                res.put("totalActiveNow", productService.getAllProducts().size());
+                return ResponseEntity.ok(res);
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", "mongoTemplate no disponible"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/upload-images")
