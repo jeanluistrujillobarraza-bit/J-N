@@ -88,10 +88,15 @@ public class ProductService {
             try { p.setPrice(Double.parseDouble((String) priceObj)); } catch (Exception ignored) {}
         }
         
-        p.setCategory(doc.getString("category"));
-        p.setType(doc.getString("type"));
+        String cat = doc.getString("category");
+        String type = doc.getString("type");
+        p.setCategory(cat != null ? cat : (type != null ? type : "General"));
+        p.setType(type != null ? type : (cat != null ? cat.toLowerCase() : "general"));
         
         Object stockObj = doc.get("generalStock");
+        if (stockObj == null) {
+            stockObj = doc.get("stock");
+        }
         if (stockObj instanceof Number) {
             p.setGeneralStock(((Number) stockObj).intValue());
         }
@@ -102,6 +107,14 @@ public class ProductService {
             for (Object o : (List<?>) imgsObj) {
                 if (o != null) imgs.add(o.toString());
             }
+            p.setImages(imgs);
+        } else if (imgsObj instanceof String) {
+            List<String> imgs = new ArrayList<>();
+            imgs.add((String) imgsObj);
+            p.setImages(imgs);
+        } else if (doc.getString("image") != null) {
+            List<String> imgs = new ArrayList<>();
+            imgs.add(doc.getString("image"));
             p.setImages(imgs);
         }
 
