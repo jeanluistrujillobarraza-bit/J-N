@@ -20,24 +20,81 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
-    @Autowired
+    @Autowired(required = false)
     private CategoryRepository categoryRepository;
 
+    @Autowired(required = false)
+    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
     public List<Product> getAllProducts() {
+        List<Product> list = new ArrayList<>();
         try {
-            List<Product> all = productRepository.findAll();
-            List<Product> active = new ArrayList<>();
-            for (Product p : all) {
-                if (p != null && !p.isDeleted()) {
-                    active.add(p);
-                }
-            }
-            return active;
+            list = productRepository.findAll();
         } catch (Exception e) {
-            System.err.println("Error al obtener todos los productos de MongoDB: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error en productRepository.findAll(): " + e.getMessage());
+        }
+
+        // Fallback: Si list está vacío o falló la deserialización, extraer directamente los documentos BSON
+        if ((list == null || list.isEmpty()) && mongoTemplate != null) {
+            try {
+                list = new ArrayList<>();
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
+                    Product p = new Product();
+                    p.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
+                    p.setName(doc.getString("name"));
+                    p.setDescription(doc.getString("description"));
+                    
+                    Object priceObj = doc.get("price");
+                    if (priceObj instanceof Number) {
+                        p.setPrice(((Number) priceObj).doubleValue());
+                    } else if (priceObj instanceof String) {
+                        try { p.setPrice(Double.parseDouble((String) priceObj)); } catch (Exception ignored) {}
+                    }
+                    
+                    p.setCategory(doc.getString("category"));
+                    p.setType(doc.getString("type"));
+                    
+                    Object stockObj = doc.get("generalStock");
+                    if (stockObj instanceof Number) {
+                        p.setGeneralStock(((Number) stockObj).intValue());
+                    }
+                    
+                    Object imgsObj = doc.get("images");
+                    if (imgsObj instanceof List) {
+                        List<String> imgs = new ArrayList<>();
+                        for (Object o : (List<?>) imgsObj) {
+                            if (o != null) imgs.add(o.toString());
+                        }
+                        p.setImages(imgs);
+                    }
+                    
+                    Boolean del = doc.getBoolean("deleted");
+                    p.setDeleted(Boolean.TRUE.equals(del));
+                    list.add(p);
+                }
+                System.out.println("Recuperados " + list.size() + " productos mediante fallback BSON.");
+            } catch (Exception ex) {
+                System.err.println("Error en fallback BSON: " + ex.getMessage());
+            }
+        }
+
+        if (list == null || list.isEmpty()) {
             return new ArrayList<>();
         }
+
+        List<Product> active = new ArrayList<>();
+        for (Product p : list) {
+            if (p != null && !p.isDeleted()) {
+                active.add(p);
+            }
+        }
+
+        // Si todos estuvieran marcados con deleted por error, devolver todos para no ocultar el catálogo
+        if (active.isEmpty() && !list.isEmpty()) {
+            return list;
+        }
+
+        return active;
     }
 
     public List<Product> getDeletedProducts() {
@@ -52,7 +109,6 @@ public class ProductService {
             return deleted;
         } catch (Exception e) {
             System.err.println("Error al obtener productos eliminados de MongoDB: " + e.getMessage());
-            e.printStackTrace();
             return new ArrayList<>();
         }
     }
