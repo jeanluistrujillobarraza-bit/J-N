@@ -367,7 +367,8 @@ public class OrderController {
             LocalDateTime startOfMonth = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
             
             for (Order order : orders) {
-                if ("PAGADO".equalsIgnoreCase(order.getStatus())) {
+                String status = order.getStatus() != null ? order.getStatus().toUpperCase() : "";
+                if (!"CANCELADO".equals(status)) {
                     totalRevenue += order.getTotal();
                     if (order.getCreatedAt() != null) {
                         if (order.getCreatedAt().isAfter(startOfToday)) {
@@ -380,9 +381,11 @@ public class OrderController {
                             monthRevenue += order.getTotal();
                         }
                     }
-                    completedOrdersCount++;
-                } else if ("PENDIENTE".equalsIgnoreCase(order.getStatus())) {
-                    pendingOrdersCount++;
+                    if ("PAGADO".equals(status) || "ENVIADO".equals(status)) {
+                        completedOrdersCount++;
+                    } else {
+                        pendingOrdersCount++;
+                    }
                 }
             }
             
@@ -413,6 +416,7 @@ public class OrderController {
             statsResponse.put("monthRevenue", monthRevenue);
             statsResponse.put("pendingOrders", pendingOrdersCount);
             statsResponse.put("completedOrders", completedOrdersCount);
+            statsResponse.put("totalOrders", orders.size());
             statsResponse.put("totalProducts", totalProducts);
             statsResponse.put("makeupCount", makeupCount);
             statsResponse.put("clothingCount", clothingCount);

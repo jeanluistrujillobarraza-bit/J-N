@@ -3,6 +3,7 @@ package com.jyn.store.service;
 import com.jyn.store.dto.CartItemDto;
 import com.jyn.store.model.Order;
 import com.jyn.store.model.OrderItem;
+import com.jyn.store.model.Product;
 import com.jyn.store.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,20 @@ public class OrderService {
 
         double total = 0;
         for (OrderItem item : items) {
+            // If name or price is missing from payload, retrieve directly from Product database
+            if ((item.getName() == null || item.getName().trim().isEmpty()) && item.getProductId() != null) {
+                Optional<Product> prodOpt = productService.getProductById(item.getProductId());
+                if (prodOpt.isPresent()) {
+                    Product prod = prodOpt.get();
+                    item.setName(prod.getName());
+                    if (item.getPrice() <= 0) {
+                        item.setPrice(prod.getPrice());
+                    }
+                    if (item.getType() == null) {
+                        item.setType(prod.getType());
+                    }
+                }
+            }
             total += item.getPrice() * item.getQuantity();
         }
 

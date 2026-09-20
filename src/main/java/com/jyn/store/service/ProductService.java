@@ -52,38 +52,19 @@ public class ProductService {
             return new ArrayList<>(cached);
         }
 
-        List<Product> list = new ArrayList<>();
-        if (mongoTemplate != null) {
-            try {
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
-                    try {
-                        Product p = mapDocToProduct(doc, false);
-                        if (p != null) {
-                            list.add(p);
-                        }
-                    } catch (Exception docEx) {
-                        try {
-                            Product fallback = new Product();
-                            fallback.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
-                            fallback.setName(getSafeString(doc, "name") != null ? getSafeString(doc, "name") : "Producto");
-                            fallback.setCategory(getSafeString(doc, "category") != null ? getSafeString(doc, "category") : "General");
-                            fallback.setType(getSafeString(doc, "type") != null ? getSafeString(doc, "type") : "general");
-                            Object delObj = doc.get("deleted");
-                            fallback.setDeleted(delObj instanceof Boolean && (Boolean) delObj);
-                            list.add(fallback);
-                        } catch (Exception ignored) {}
-                    }
-                }
-                System.out.println("Cargados " + list.size() + " productos optimizados desde MongoDB.");
-            } catch (Exception ex) {
-                System.err.println("Error en lectura directa de MongoDB: " + ex.getMessage());
-            }
+        List<Product> list = null;
+        try {
+            list = productRepository.findActiveProducts();
+        } catch (Exception e) {
+            System.err.println("Error en findActiveProducts: " + e.getMessage());
         }
 
-        if (list.isEmpty()) {
+        if (list == null || list.isEmpty()) {
             try {
                 list = productRepository.findAll();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                System.err.println("Error en findAll: " + e.getMessage());
+            }
         }
 
         if (list == null || list.isEmpty()) {
@@ -205,48 +186,15 @@ public class ProductService {
 
     public List<Product> getDeletedProducts() {
         try {
-            List<Product> deleted = new ArrayList<>();
-            if (mongoTemplate != null) {
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(new org.bson.Document("deleted", true))) {
-                    Product p = mapDocToProduct(doc, false);
-                    if (p != null) {
-                        deleted.add(p);
-                    }
-                }
-            }
-            if (deleted.isEmpty()) {
-                List<Product> all = productRepository.findAll();
-                for (Product p : all) {
-                    if (p != null && p.isDeleted()) {
-                        deleted.add(p);
-                    }
-                }
-            }
-            return deleted;
+            return productRepository.findDeletedProducts();
         } catch (Exception e) {
-            System.err.println("Error al obtener productos eliminados de MongoDB: " + e.getMessage());
+            System.err.println("Error al obtener productos eliminados: " + e.getMessage());
             return new ArrayList<>();
         }
     }
 
     public Optional<Product> getProductById(String id) {
         if (id == null) return Optional.empty();
-        if (mongoTemplate != null) {
-            try {
-                org.bson.Document doc = null;
-                if (org.bson.types.ObjectId.isValid(id)) {
-                    doc = mongoTemplate.getCollection("products").find(new org.bson.Document("_id", new org.bson.types.ObjectId(id))).first();
-                }
-                if (doc == null) {
-                    doc = mongoTemplate.getCollection("products").find(new org.bson.Document("_id", id)).first();
-                }
-                if (doc != null) {
-                    return Optional.ofNullable(mapDocToProduct(doc, true));
-                }
-            } catch (Exception e) {
-                System.err.println("Error buscando producto por ID: " + e.getMessage());
-            }
-        }
         return productRepository.findById(id);
     }
 

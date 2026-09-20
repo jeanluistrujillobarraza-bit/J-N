@@ -1,0 +1,120 @@
+/* ==========================================================================
+   J&N STORE - REAL PAGINATION COMPONENT STYLES
+   ========================================================================== */
+
+.pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0;
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 15px;
+    width: 100%;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pagination-btn {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: white;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--accent-pink);
+    color: var(--accent-pink);
+    background-color: var(--primary-pink);
+}
+
+.pagination-btn.active {
+    background: var(--accent-pink);
+    color: white;
+    border-color: var(--accent-pink);
+    box-shadow: 0 2px 8px rgba(216, 27, 96, 0.25);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--bg-light);
+    border-color: var(--border-color-subtle);
+}
+
+.pagination-ellipsis {
+    padding: 0 6px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.pagination-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.pagination-size-select {
+    padding: 8px 12px;
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+
+.pagination-size-select:focus {
+    border-color: var(--accent-pink);
+}
+
+@media (max-width: 640px) {
+    .pagination-wrapper {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        padding: 14px 0;
+    }
+    
+    .pagination-controls {
+        gap: 4px;
+    }
+
+    .pagination-btn {
+        min-width: 38px;
+        height: 38px;
+        padding: 0 8px;
+        font-size: 13px;
+    }
+}

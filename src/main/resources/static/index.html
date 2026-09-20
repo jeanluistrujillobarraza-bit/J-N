@@ -3,568 +3,727 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J&N - Tienda de Ropa y Maquillaje</title>
+    <title>J&N - Tienda de Maquillaje y Moda</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="alternate icon" type="image/x-icon" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="/styles.css?v=4.2">
+    
+    <!-- Modular CSS System -->
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/store.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/pagination.css">
 </head>
 <body>
 
     <!-- Header Navigation -->
     <header class="main-header">
-        <div class="header-container">
-            <div class="logo-area" onclick="app.goHome()">
-                <h1>J&amp;N</h1>
-                <span>Maquillaje &amp; Moda</span>
+        <div class="container header-content">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <!-- Mobile Hamburger Menu Button -->
+                <button class="menu-toggle-btn" id="mobile-menu-btn" onclick="app.toggleMobileMenu()" aria-label="Abrir menú de categorías">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <div class="brand" onclick="app.closeAdminSection()">
+                    <div class="brand-icon">
+                        <i class="fas fa-gem"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1>J&amp;N</h1>
+                        <p>Maquillaje &amp; Moda</p>
+                    </div>
+                </div>
             </div>
-            
-            <nav class="nav-links" id="header-nav-links">
-                <a href="#" onclick="app.filterCategory('todos'); return false;" class="active-nav" id="nav-todos">Todos</a>
-                <a href="#" onclick="app.filterCategory('maquillaje'); return false;" id="nav-maquillaje">Maquillaje</a>
-                <a href="#" onclick="app.filterCategory('ropa'); return false;" id="nav-ropa">Ropa</a>
-            </nav>
 
             <div class="header-actions">
-                <div class="search-bar">
-                    <input type="text" id="global-search" placeholder="Buscar productos..." oninput="app.handleSearch(event)">
-                    <i class="fas fa-search"></i>
-                </div>
-                
-                <button class="cart-btn" onclick="app.toggleCart()">
-                    <i class="fas fa-shopping-cart"></i>
+                <button class="cart-btn" onclick="app.openCart()">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span>Carrito</span>
                     <span class="cart-badge" id="cart-badge-count">0</span>
                 </button>
 
-                <div id="auth-header-actions" style="display: flex; gap: 8px;">
+                <div id="auth-actions" style="display: flex; gap: 8px;">
                     <button class="admin-btn" id="header-login-btn" onclick="app.openLoginTab()">
-                        <i class="fas fa-sign-in-alt"></i> <span class="btn-text">Ingresar</span>
+                        <i class="fas fa-sign-in-alt"></i> <span>Ingresar</span>
                     </button>
                     <button class="admin-btn" id="header-register-btn" onclick="app.openRegisterTab()">
-                        <i class="fas fa-user-plus"></i> <span class="btn-text">Registrarse</span>
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </button>
+                    <button class="admin-btn hidden" id="header-user-btn" style="background: var(--bg-light);">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <button class="btn btn-gold hidden" id="header-admin-btn" onclick="app.toggleAdminSection()">
+                        <i class="fas fa-sliders-h"></i> <span>Administración</span>
                     </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="main-content">
-        <!-- Hero section for home -->
-        <section class="hero-banner" id="hero-banner" style="position: relative; width: 100%; line-height: 0; padding: 0; margin: 0; overflow: hidden;">
-            <img src="hero_banner_bg.png?v=10" alt="J&N Banner" style="width: 100%; height: auto; display: block; margin: 0; padding: 0;">
-            <div class="hero-text" style="position: absolute; bottom: 27%; left: 50%; transform: translateX(-50%); z-index: 2; margin: 0; padding: 0;">
-                <a href="#catalog-section" class="gold-btn">Ver Colección</a>
-            </div>
-        </section>
-
-        <!-- Product Catalog Section -->
-        <section class="catalog-section" id="catalog-section">
-            <div class="catalog-header">
-                <h3 class="section-title">Nuestra Colección</h3>
-                <div class="filter-pills" id="catalog-filter-pills">
-                    <button class="pill active" onclick="app.filterCategory('todos')" id="pill-todos">Todos</button>
-                    <button class="pill" onclick="app.filterCategory('maquillaje')" id="pill-maquillaje">Maquillaje</button>
-                    <button class="pill" onclick="app.filterCategory('ropa')" id="pill-ropa">Ropa</button>
+    <!-- Mobile Navigation Drawer (Hamburger Menu) -->
+    <div class="mobile-menu-drawer" id="mobile-menu-drawer">
+        <div class="mobile-menu-header">
+            <div class="brand">
+                <div class="brand-icon" style="width: 32px; height: 32px; font-size: 14px;">
+                    <i class="fas fa-gem"></i>
+                </div>
+                <div class="brand-text">
+                    <h2 style="font-size: 18px; margin: 0;">J&amp;N Categorías</h2>
                 </div>
             </div>
-            
-            <div class="products-grid" id="products-grid">
-                <!-- Products will be loaded dynamically here -->
-            </div>
-        </section>
-
-        <!-- Admin Workspace Section (Hidden by Default) -->
-        <section class="admin-section hidden" id="admin-section">
-            <div class="admin-container">
-                <div class="admin-sidebar">
-                    <h4>Panel J&N</h4>
-                    <button onclick="app.setAdminTab('dashboard')" class="admin-tab-btn active" id="tab-dashboard">
-                        <i class="fas fa-chart-line"></i> Dashboard
-                    </button>
-                    <button onclick="app.setAdminTab('products')" class="admin-tab-btn" id="tab-products">
-                        <i class="fas fa-boxes"></i> Inventario
-                    </button>
-                    <button onclick="app.setAdminTab('categories')" class="admin-tab-btn" id="tab-categories">
-                        <i class="fas fa-tags"></i> Categorías
-                    </button>
-                    <button onclick="app.setAdminTab('orders')" class="admin-tab-btn" id="tab-orders">
-                        <i class="fas fa-receipt"></i> Pedidos
-                    </button>
-                    <button onclick="app.setAdminTab('trash')" class="admin-tab-btn" id="tab-trash">
-                        <i class="fas fa-trash-restore"></i> Papelera
-                    </button>
-                    <button onclick="app.adminLogout()" class="admin-tab-btn logout-btn">
-                        <i class="fas fa-sign-out-alt"></i> Salir
-                    </button>
-                </div>
-
-                <div class="admin-content-area">
-                    <!-- Dashboard Tab -->
-                    <div class="admin-tab-content" id="content-dashboard">
-                        <h3 class="content-title">Estadísticas y Alertas</h3>
-                        <!-- Sales Statistics Section -->
-                        <h4 style="font-family: 'Playfair Display', serif; color: var(--dark-neutral); margin-bottom: 15px; margin-top: 10px; font-weight: 600;">Control de Ventas</h4>
-                        <div class="stats-grid" style="margin-bottom: 30px;">
-                            <div class="stat-card" style="border-left: 4px solid #2ec4b6;">
-                                <div class="stat-icon" style="background-color: rgba(46,196,182,0.1); color: #2ec4b6;"><i class="fas fa-calendar-day"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-sales-today">$0</h4>
-                                    <p>Ventas de Hoy</p>
-                                </div>
-                            </div>
-                            <div class="stat-card" style="border-left: 4px solid var(--gold);">
-                                <div class="stat-icon" style="background-color: rgba(212,175,55,0.1); color: var(--gold);"><i class="fas fa-calendar-week"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-sales-week">$0</h4>
-                                    <p>Última Semana</p>
-                                </div>
-                            </div>
-                            <div class="stat-card" style="border-left: 4px solid var(--pastel-dark-pink);">
-                                <div class="stat-icon" style="background-color: rgba(255,182,193,0.2); color: var(--pastel-dark-pink);"><i class="fas fa-calendar-alt"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-sales-month">$0</h4>
-                                    <p>Ventas del Mes</p>
-                                </div>
-                            </div>
-                            <div class="stat-card" style="border-left: 4px solid #7209b7;">
-                                <div class="stat-icon" style="background-color: rgba(114,9,183,0.1); color: #7209b7;"><i class="fas fa-chart-line"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-sales-total">$0</h4>
-                                    <p>Histórico Total</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Inventory Statistics Section -->
-                        <h4 style="font-family: 'Playfair Display', serif; color: var(--dark-neutral); margin-bottom: 15px; font-weight: 600;">Estado de Inventario</h4>
-                        <div class="stats-grid" id="inventory-stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-icon pink-bg"><i class="fas fa-palette"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-makeup-count">0</h4>
-                                    <p>Maquillaje</p>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon gold-bg"><i class="fas fa-tshirt"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-clothing-count">0</h4>
-                                    <p>Ropa</p>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon alert-bg" id="stat-alerts-bg"><i class="fas fa-exclamation-triangle"></i></div>
-                                <div class="stat-info">
-                                    <h4 id="stat-alert-count">0</h4>
-                                    <p>Alertas de Stock</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alerts-section">
-                            <h4>Alertas Críticas de Inventario</h4>
-                            <div class="alerts-list" id="alerts-list">
-                                <!-- Alerts will trigger here -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Products Tab -->
-                    <div class="admin-tab-content hidden" id="content-products">
-                        <div class="content-header">
-                            <h3 class="content-title">Gestión de Inventario</h3>
-                            <button class="gold-btn btn-sm" onclick="app.openProductModal()"><i class="fas fa-plus"></i> Nuevo Producto</button>
-                        </div>
-                        <div class="table-container">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Imagen</th>
-                                        <th>Nombre</th>
-                                        <th>Categoría/Tipo</th>
-                                        <th>Precio</th>
-                                        <th>Stock</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-products-table-body">
-                                    <!-- Table contents dynamic -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Categories Tab -->
-                    <div class="admin-tab-content hidden" id="content-categories">
-                        <h3 class="content-title">Gestión de Categorías y Subcategorías</h3>
-                        
-                        <!-- 1. Categorías Principales (Departamentos) -->
-                        <div style="margin-bottom: 40px;">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                                <h4 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--dark-neutral); margin: 0;">
-                                    <i class="fas fa-layer-group" style="color: var(--gold); margin-right: 6px;"></i> 1. Categorías Principales (Barra Superior)
-                                </h4>
-                                <span style="font-size: 12px; color: var(--gray-dark);">(Aparecen arriba: TODOS | MAQUILLAJE | ROPA...)</span>
-                            </div>
-                            <div class="category-manager-grid">
-                                <div class="category-form-card">
-                                    <h4 id="main-category-form-title">Nueva Categoría Principal</h4>
-                                    <form id="main-category-form" onsubmit="app.handleSaveMainCategory(event)">
-                                        <input type="hidden" id="main-category-id" value="">
-                                        <div class="form-group">
-                                            <label for="main-category-name">Nombre de Categoría Principal</label>
-                                            <input type="text" id="main-category-name" required placeholder="Ej: Maquillaje, Ropa, Accesorios, Perfumes, Zapatos">
-                                        </div>
-                                        <div style="display: flex; gap: 8px;">
-                                            <button type="submit" id="main-category-submit-btn" class="gold-btn w-100">Crear Categoría Principal</button>
-                                            <button type="button" id="main-category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditMainCategory()" style="padding: 10px 14px;">Cancelar</button>
-                                        </div>
-                                    </form>
-                                </div>
-                                <div class="category-list-card">
-                                    <h4>Listado de Categorías Principales</h4>
-                                    <ul class="category-list" id="admin-main-category-list">
-                                        <!-- Dynamic main categories -->
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 2. Subcategorías (Filtros de Colección) -->
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                                <h4 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--dark-neutral); margin: 0;">
-                                    <i class="fas fa-tags" style="color: var(--accent-pink); margin-right: 6px;"></i> 2. Subcategorías (Filtros de Colección)
-                                </h4>
-                                <span style="font-size: 12px; color: var(--gray-dark);">(Aparecen abajo al seleccionar una categoría principal: Bases, Sombras...)</span>
-                            </div>
-                            <div class="category-manager-grid">
-                                <div class="category-form-card">
-                                    <h4 id="category-form-title">Nueva Subcategoría</h4>
-                                    <form id="category-form" onsubmit="app.handleSaveCategory(event)">
-                                        <input type="hidden" id="category-id" value="">
-                                        <div class="form-group">
-                                            <label for="category-name">Nombre de Subcategoría</label>
-                                            <input type="text" id="category-name" required placeholder="Ej: Bases, Correctores, Vestidos, Sombras">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="category-parent">Categoría Principal a la que pertenece</label>
-                                            <select id="category-parent" required>
-                                                <!-- Dynamic main categories options -->
-                                            </select>
-                                        </div>
-                                        <div style="display: flex; gap: 8px;">
-                                            <button type="submit" id="category-submit-btn" class="gold-btn w-100">Crear Subcategoría</button>
-                                            <button type="button" id="category-cancel-btn" class="outline-btn hidden" onclick="app.cancelEditCategory()" style="padding: 10px 14px;">Cancelar</button>
-                                        </div>
-                                    </form>
-                                </div>
-                                <div class="category-list-card">
-                                    <h4>Listado de Subcategorías</h4>
-                                    <ul class="category-list" id="admin-category-list">
-                                        <!-- Dynamic subcategories -->
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Orders Tab -->
-                    <div class="admin-tab-content hidden" id="content-orders">
-                        <h3 class="content-title">Registro de Pagos y Pedidos</h3>
-                        <div class="table-container">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Código</th>
-                                        <th>Cliente</th>
-                                        <th>Fecha</th>
-                                        <th>Detalles de Productos</th>
-                                        <th>Total</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-orders-table-body">
-                                    <!-- Dynamic orders list -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Trash Tab -->
-                    <div class="admin-tab-content hidden" id="content-trash">
-                        <div class="trash-header-area" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h3 class="content-title" style="margin-bottom: 0;">Papelera del Sistema</h3>
-                            <div class="trash-nav-tabs" style="display: flex; gap: 10px;">
-                                <button type="button" class="gold-btn btn-sm" id="trash-tab-products-btn" onclick="app.setTrashSubTab('products')"><i class="fas fa-box"></i> Productos</button>
-                                <button type="button" class="outline-btn btn-sm" id="trash-tab-orders-btn" onclick="app.setTrashSubTab('orders')"><i class="fas fa-receipt"></i> Pedidos</button>
-                            </div>
-                        </div>
-
-                        <!-- Deleted Products Section -->
-                        <div id="trash-products-section">
-                            <h4 style="font-size: 15px; margin-bottom: 12px; color: var(--gray-dark);"><i class="fas fa-box-open"></i> Productos en Papelera</h4>
-                            <div class="table-container">
-                                <table class="admin-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Imagen</th>
-                                            <th>Nombre</th>
-                                            <th>Categoría / Tipo</th>
-                                            <th>Precio</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="admin-trash-products-table-body">
-                                        <!-- Soft-deleted products list -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Deleted Orders Section -->
-                        <div id="trash-orders-section" class="hidden" style="margin-top: 20px;">
-                            <h4 style="font-size: 15px; margin-bottom: 12px; color: var(--gray-dark);"><i class="fas fa-receipt"></i> Pedidos en Papelera</h4>
-                            <div class="table-container">
-                                <table class="admin-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Código</th>
-                                            <th>Cliente</th>
-                                            <th>Fecha</th>
-                                            <th>Detalles de Productos</th>
-                                            <th>Total</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="admin-trash-table-body">
-                                        <!-- Soft-deleted orders list -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Cart Drawer (Sidebar) -->
-    <div class="cart-drawer" id="cart-drawer">
-        <div class="cart-drawer-header">
-            <h3>Carrito de Compras</h3>
-            <button class="close-btn" onclick="app.toggleCart()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="cart-drawer-items" id="cart-drawer-items">
-            <!-- Dynamic Cart Items -->
-        </div>
-        <div class="cart-drawer-footer">
-            <div id="cart-guest-fields">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="cart-customer-first-name" style="margin-bottom: 4px; font-size: 11px;">Nombre *</label>
-                    <input type="text" id="cart-customer-first-name" placeholder="Ej: María" style="padding: 8px 12px; font-size: 13px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="cart-customer-last-name" style="margin-bottom: 4px; font-size: 11px;">Apellido *</label>
-                    <input type="text" id="cart-customer-last-name" placeholder="Ej: Pérez" style="padding: 8px 12px; font-size: 13px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label for="cart-customer-phone" style="margin-bottom: 4px; font-size: 11px;">WhatsApp/Celular *</label>
-                    <input type="text" id="cart-customer-phone" placeholder="Ej: 3001234567" style="padding: 8px 12px; font-size: 13px;">
-                </div>
-            </div>
-            <div class="cart-totals">
-                <div class="total-row">
-                    <span>Total a pagar:</span>
-                    <span class="total-price" id="cart-total-price">$0</span>
-                </div>
-            </div>
-            <button class="checkout-btn" onclick="app.finalizePurchase()">
-                <i class="fab fa-whatsapp"></i> Finalizar Compra por WhatsApp
+            <button class="drawer-close-btn" onclick="app.closeMobileMenu()" aria-label="Cerrar menú">
+                <i class="fas fa-times"></i>
             </button>
         </div>
-    </div>
-    <div class="drawer-overlay" id="drawer-overlay" onclick="app.toggleCart()"></div>
-
-    <!-- Login/Register Modal -->
-    <div class="modal-backdrop hidden" id="login-modal">
-        <div class="modal-content auth-modal">
-            <button class="modal-close" onclick="app.closeLoginModal()"><i class="fas fa-times"></i></button>
-            <div class="auth-header">
-                <h2>J&amp;N</h2>
-                <p id="auth-subtitle">ACCESO DE CLIENTES</p>
-            </div>
-            
-            <div class="auth-tabs" style="display: flex; justify-content: space-around; margin-bottom: 20px; border-bottom: 1px solid var(--gray-light);">
-                <button type="button" id="auth-tab-login" class="auth-tab-btn" onclick="app.setAuthTab('login')" style="background: none; border: none; padding: 10px; font-weight: 600; cursor: pointer; color: var(--gold); border-bottom: 2px solid var(--gold); font-family: inherit; font-size: 14px;">Ingresar</button>
-                <button type="button" id="auth-tab-register" class="auth-tab-btn" onclick="app.setAuthTab('register')" style="background: none; border: none; padding: 10px; font-weight: 600; cursor: pointer; color: var(--gray-dark); font-family: inherit; font-size: 14px;">Registrarse</button>
+        <div class="mobile-menu-body">
+            <h4 class="mobile-menu-section-title"><i class="fas fa-layer-group"></i> Departamentos</h4>
+            <div class="mobile-dept-list" id="mobile-nav-departments">
+                <!-- Dynamic Mobile Department Items -->
             </div>
 
-            <!-- Login Form -->
-            <form id="login-form" onsubmit="app.handleLogin(event)">
-                <div id="login-error-msg" class="auth-error-banner hidden"></div>
-                <div class="form-group">
-                    <label for="login-username">Usuario</label>
-                    <input type="text" id="login-username" required placeholder="Tu usuario">
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Contraseña</label>
-                    <div class="password-input-wrapper">
-                        <input type="password" id="login-password" required placeholder="Contraseña">
-                        <button type="button" class="toggle-password-btn" onclick="app.togglePasswordVisibility('login-password', this)" title="Mostrar contraseña" aria-label="Mostrar contraseña">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="remember-me-container">
-                    <label class="remember-me-label" for="login-remember-me">
-                        <input type="checkbox" id="login-remember-me">
-                        <span>Recuérdame</span>
-                    </label>
-                </div>
-                <button type="submit" id="login-submit-btn" class="gold-btn w-100 mt-2">Iniciar Sesión</button>
-            </form>
-
-            <!-- Register Form -->
-            <form id="register-form" class="hidden" onsubmit="app.handleRegister(event)">
-                <div id="register-error-msg" class="auth-error-banner hidden"></div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="register-first-name">Nombre *</label>
-                    <input type="text" id="register-first-name" required placeholder="Ej: María">
-                </div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="register-last-name">Apellido *</label>
-                    <input type="text" id="register-last-name" required placeholder="Ej: Pérez">
-                </div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="register-username">Nombre de Usuario *</label>
-                    <input type="text" id="register-username" required placeholder="Ej: mariaperez">
-                </div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label for="register-phone">WhatsApp/Celular *</label>
-                    <input type="text" id="register-phone" required placeholder="Ej: 3001234567">
-                </div>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label for="register-password">Contraseña *</label>
-                    <div class="password-input-wrapper">
-                        <input type="password" id="register-password" required placeholder="Crea tu contraseña">
-                        <button type="button" class="toggle-password-btn" onclick="app.togglePasswordVisibility('register-password', this)" title="Mostrar contraseña" aria-label="Mostrar contraseña">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                <button type="submit" id="register-submit-btn" class="gold-btn w-100">Crear Cuenta</button>
-            </form>
-        </div>
-    </div>
-
-
-
-    <!-- Product Details Modal (Public) -->
-    <div class="modal-backdrop hidden" id="product-detail-modal">
-        <div class="modal-content detail-modal">
-            <button class="modal-close" onclick="app.closeDetailModal()"><i class="fas fa-times"></i></button>
-            <div class="product-detail-grid" id="product-detail-content">
-                <!-- Dynamic detail elements loaded on click -->
+            <h4 class="mobile-menu-section-title" style="margin-top: 20px;"><i class="fas fa-tags"></i> Subcategorías</h4>
+            <div class="mobile-sub-list" id="mobile-filter-pills">
+                <!-- Dynamic Mobile Subcategory Items -->
             </div>
         </div>
     </div>
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="app.closeMobileMenu()"></div>
 
-    <!-- Product Form Modal (Admin Create/Edit) -->
-    <div class="modal-backdrop hidden" id="product-form-modal">
-        <div class="modal-content product-form-modal">
-            <button class="modal-close" onclick="app.closeProductModal()"><i class="fas fa-times"></i></button>
-            <h3 id="product-form-title">Agregar Nuevo Producto</h3>
-            <form id="product-form" onsubmit="app.handleSaveProduct(event)">
-                <input type="hidden" id="form-product-id">
-                
-                <div class="form-row">
-                    <div class="form-group col-6">
-                        <label for="form-product-name">Nombre del Producto</label>
-                        <input type="text" id="form-product-name" required placeholder="Ej: Base Líquida Fit Me">
+    <!-- Public Store Section -->
+    <div id="store-section">
+        <!-- Category Navbar -->
+        <nav class="category-navbar">
+            <div class="container">
+                <div class="nav-departments" id="nav-departments">
+                    <!-- Dynamic Department Buttons -->
+                </div>
+                <div class="filter-pills-container" id="filter-pills">
+                    <!-- Dynamic Subcategory Pills -->
+                </div>
+            </div>
+        </nav>
+
+        <main class="container">
+            <!-- Hero Banner -->
+            <section class="hero-banner">
+                <div class="hero-content">
+                    <div class="hero-badge">
+                        <i class="fas fa-sparkles"></i> Nueva Colección 2026
                     </div>
-                    <div class="form-group col-6">
-                        <label for="form-product-price">Precio ($)</label>
-                        <input type="number" id="form-product-price" required min="1" placeholder="Ej: 45000">
+                    <h2 class="hero-title">Realza tu belleza con elegancia y <span>estilo único</span></h2>
+                    <p class="hero-description">Explora nuestra selección exclusiva de maquillaje profesional, cosméticos premium y las últimas tendencias en moda femenina.</p>
+                    <a href="#catalog-section" class="btn btn-gold">
+                        <i class="fas fa-shopping-bag"></i> Ver Catálogo Completo
+                    </a>
+                </div>
+            </section>
+
+            <!-- Search Bar -->
+            <div class="search-container" id="catalog-section">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar productos por nombre, categoría o detalle...">
+            </div>
+
+            <!-- Products Grid -->
+            <div class="products-grid" id="products-grid">
+                <!-- Products loaded dynamically -->
+            </div>
+
+            <!-- Real Pagination for Catalog -->
+            <div id="catalog-pagination-container"></div>
+        </main>
+    </div>
+
+    <!-- Admin Workspace Section (Hidden by Default) -->
+    <section class="admin-section hidden" id="admin-section">
+        <div class="container admin-container">
+            <!-- Sidebar -->
+            <div class="admin-sidebar">
+                <h4>Panel de Control</h4>
+                <button onclick="app.setAdminTab('dashboard')" class="admin-tab-btn active" id="tab-dashboard">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </button>
+                <button onclick="app.setAdminTab('products')" class="admin-tab-btn" id="tab-products">
+                    <i class="fas fa-boxes"></i> Inventario
+                </button>
+                <button onclick="app.setAdminTab('categories')" class="admin-tab-btn" id="tab-categories">
+                    <i class="fas fa-tags"></i> Categorías
+                </button>
+                <button onclick="app.setAdminTab('orders')" class="admin-tab-btn" id="tab-orders">
+                    <i class="fas fa-receipt"></i> Pedidos
+                </button>
+                <button onclick="app.setAdminTab('trash')" class="admin-tab-btn" id="tab-trash">
+                    <i class="fas fa-trash-restore"></i> Papelera
+                </button>
+                <button onclick="app.adminLogout()" class="admin-tab-btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="admin-content-area">
+                <!-- 1. Dashboard Tab -->
+                <div class="admin-tab-content" id="content-dashboard">
+                    <div class="admin-header-row">
+                        <h3>Resumen General de Ventas</h3>
+                    </div>
+                    
+                    <div class="stats-grid" style="margin-bottom: 30px;">
+                        <div class="stat-card" style="border-left: 4px solid #10b981;">
+                            <div class="stat-icon" style="background-color: rgba(16,185,129,0.1); color: #10b981;"><i class="fas fa-calendar-day"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-today">$0</h4>
+                                <p>Ventas de Hoy</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid var(--gold);">
+                            <div class="stat-icon" style="background-color: rgba(212,175,55,0.15); color: var(--gold);"><i class="fas fa-calendar-week"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-week">$0</h4>
+                                <p>Última Semana</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid #3b82f6;">
+                            <div class="stat-icon" style="background-color: rgba(59,130,246,0.1); color: #3b82f6;"><i class="fas fa-calendar-alt"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-month">$0</h4>
+                                <p>Ventas del Mes</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid #7209b7;">
+                            <div class="stat-icon" style="background-color: rgba(114,9,183,0.1); color: #7209b7;"><i class="fas fa-chart-line"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-total">$0</h4>
+                                <p>Histórico Total</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-bottom: 15px; font-size: 16px; font-weight: 700;">Estado de Inventario por Departamento</h4>
+                    <div class="stats-grid" id="inventory-stats-grid">
+                        <!-- Dynamic department stats -->
+                    </div>
+
+                    <h4 style="margin-top: 30px; margin-bottom: 15px; font-size: 16px; font-weight: 700;">Alertas Críticas de Inventario</h4>
+                    <div class="alerts-list" id="alerts-list">
+                        <!-- Dynamic stock alerts -->
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="form-product-description">Descripción</label>
-                    <textarea id="form-product-description" rows="3" required placeholder="Ingresa los detalles del producto..."></textarea>
-                </div>
+                <!-- 2. Products Tab -->
+                <div class="admin-tab-content hidden" id="content-products">
+                    <div class="admin-header-row">
+                        <h3>Gestión de Inventario de Productos</h3>
+                        <button class="btn btn-gold" onclick="app.openProductModal()">
+                            <i class="fas fa-plus"></i> Nuevo Producto
+                        </button>
+                    </div>
 
-                <div class="form-row">
-                    <div class="form-group col-6">
-                        <label for="form-product-type">Tipo de Producto</label>
-                        <select id="form-product-type" onchange="app.handleProductTypeChange()" required>
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="text" class="form-control" id="admin-prod-search" placeholder="Buscar por nombre o categoría..." style="max-width: 320px;">
+                        <select class="form-control" style="max-width: 180px;" onchange="app.filterAdminProductsByType(this.value)">
+                            <option value="todos">Todos los Tipos</option>
                             <option value="maquillaje">Maquillaje</option>
                             <option value="ropa">Ropa</option>
                         </select>
                     </div>
-                    <div class="form-group col-6">
-                        <label for="form-product-category">Categoría</label>
-                        <select id="form-product-category" required>
-                            <!-- Category list -->
+
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Imagen</th>
+                                    <th>Nombre del Producto</th>
+                                    <th>Categoría / Tipo</th>
+                                    <th>Precio</th>
+                                    <th>Existencias</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-products-table-body">
+                                <!-- Dynamic products -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Real Pagination for Admin Products -->
+                    <div id="admin-products-pagination-container"></div>
+                </div>
+
+                <!-- 3. Categories Tab -->
+                <div class="admin-tab-content hidden" id="content-categories">
+                    <div class="admin-header-row">
+                        <h3>Gestión de Departamentos y Subcategorías</h3>
+                    </div>
+
+                    <div class="category-manager-grid">
+                        <!-- Main Categories Box -->
+                        <div class="category-card-box">
+                            <h4 style="margin-bottom: 12px; font-size: 15px;">1. Departamentos Principales</h4>
+                            <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                                <input type="text" class="form-control" id="new-main-category-name" placeholder="Ej: Maquillaje, Ropa, Perfumes...">
+                                <button class="btn btn-gold" onclick="app.addMainCategory()">Crear</button>
+                            </div>
+                            <ul class="category-list" id="admin-main-category-list">
+                                <!-- Dynamic list -->
+                            </ul>
+                        </div>
+
+                        <!-- Subcategories Box -->
+                        <div class="category-card-box">
+                            <h4 style="margin-bottom: 12px; font-size: 15px;">2. Subcategorías</h4>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                                <input type="text" class="form-control" id="new-subcategory-name" placeholder="Ej: BASES, RUBORES, VESTIDOS...">
+                                <select class="form-control" id="new-subcategory-parent">
+                                    <!-- Dynamic main categories options -->
+                                </select>
+                                <button class="btn btn-primary" onclick="app.addSubCategory()">Crear Subcategoría</button>
+                            </div>
+                            <ul class="category-list" id="admin-sub-category-list">
+                                <!-- Dynamic subcategories -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Orders Tab -->
+                <div class="admin-tab-content hidden" id="content-orders">
+                    <div class="admin-header-row">
+                        <h3>Historial y Control de Pedidos</h3>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="text" class="form-control" id="admin-order-search" placeholder="Buscar cliente o teléfono..." style="max-width: 320px;">
+                        <select class="form-control" style="max-width: 180px;" onchange="app.filterAdminOrdersByStatus(this.value)">
+                            <option value="todos">Todos los Estados</option>
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="PAGADO">Pagado</option>
+                            <option value="ENVIADO">Enviado</option>
+                            <option value="CANCELADO">Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th>Artículos</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-orders-table-body">
+                                <!-- Dynamic orders -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Real Pagination for Orders -->
+                    <div id="admin-orders-pagination-container"></div>
+                </div>
+
+                <!-- 5. Trash Tab -->
+                <div class="admin-tab-content hidden" id="content-trash">
+                    <div class="admin-header-row">
+                        <h3>Papelera de Reciclaje</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="pill active" id="trash-tab-products-btn" onclick="app.setTrashSubTab('products')">
+                                <i class="fas fa-boxes"></i> Productos
+                            </button>
+                            <button class="pill" id="trash-tab-orders-btn" onclick="app.setTrashSubTab('orders')">
+                                <i class="fas fa-receipt"></i> Pedidos
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead id="trash-table-head">
+                                <!-- Dynamic Table Head -->
+                            </thead>
+                            <tbody id="trash-table-body">
+                                <!-- Dynamic Trash Items -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Real Pagination for Trash -->
+                    <div id="admin-trash-pagination-container"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cart Drawer -->
+    <div class="cart-drawer" id="cart-drawer">
+        <div class="cart-drawer-header">
+            <h3><i class="fas fa-shopping-bag"></i> Tu Carrito</h3>
+            <button class="modal-close-btn" onclick="app.closeCart()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="cart-drawer-body" id="cart-items-container">
+            <!-- Dynamic Cart Items -->
+        </div>
+        <div class="cart-drawer-footer">
+            <div class="cart-total-row">
+                <span>Total:</span>
+                <span class="cart-total-price" id="cart-total-price">$0</span>
+            </div>
+            <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="app.openCheckout()">
+                <i class="fas fa-credit-card"></i> Continuar al Pago
+            </button>
+        </div>
+    </div>
+    <div class="modal-overlay hidden" id="cart-overlay" onclick="app.closeCart()"></div>
+
+    <!-- Product Detail Modal -->
+    <div class="modal-overlay hidden" id="product-detail-modal" onclick="app.closeProductDetails()">
+        <div class="modal-content product-detail-modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="app.closeProductDetails()" aria-label="Cerrar detalles"><i class="fas fa-times"></i></button>
+            <div class="product-detail-grid">
+                <div class="product-detail-media">
+                    <div class="product-detail-main-img-wrapper" onclick="app.openImageLightbox()">
+                        <img id="detail-main-img" src="" alt="Producto" loading="eager" decoding="async">
+                        <div class="detail-img-zoom-hint">
+                            <i class="fas fa-search-plus"></i> <span>Ver imagen completa</span>
+                        </div>
+                    </div>
+                    <div id="detail-thumbnails" class="detail-thumbnails-row"></div>
+                </div>
+                <div class="product-detail-info">
+                    <span id="detail-product-category" class="pill" style="margin-bottom: 8px; display: inline-block;"></span>
+                    <h3 id="detail-product-name" style="font-size: 22px; line-height: 1.25; margin-bottom: 8px;"></h3>
+                    <div id="detail-product-price" style="font-size: 24px; font-weight: 700; color: var(--accent-pink); margin-bottom: 12px;"></div>
+                    <p id="detail-product-description" style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.5;"></p>
+                    
+                    <div id="detail-variations-container" class="hidden"></div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Cantidad:</label>
+                        <input type="number" id="detail-quantity" class="form-control" value="1" min="1" max="50" style="max-width: 110px; height: 42px; font-size: 15px; font-weight: 600; text-align: center;">
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 15px;" onclick="app.addDetailToCart()">
+                        <i class="fas fa-shopping-bag"></i> Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Image Lightbox Modal (For viewing complete high-res photo) -->
+    <div class="modal-overlay hidden" id="image-lightbox-modal" onclick="app.closeImageLightbox()" style="z-index: 1200; background: rgba(0, 0, 0, 0.9);">
+        <button class="modal-close-btn" onclick="app.closeImageLightbox()" style="top: 20px; right: 20px; background: rgba(255,255,255,0.2); color: white;"><i class="fas fa-times"></i></button>
+        <div style="max-width: 90vw; max-height: 90vh; display: flex; align-items: center; justify-content: center;" onclick="event.stopPropagation()">
+            <img id="lightbox-img" src="" alt="Foto completa" style="max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal-overlay hidden" id="checkout-modal">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="app.closeCheckout()"><i class="fas fa-times"></i></button>
+            <h3 style="margin-bottom: 20px; font-size: 20px;"><i class="fas fa-truck"></i> Finalizar Compra</h3>
+            
+            <form id="checkout-form">
+                <div class="form-group">
+                    <label>Nombre y Apellido *</label>
+                    <input type="text" class="form-control" id="checkout-name" required placeholder="Ej: María Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono / WhatsApp *</label>
+                    <input type="text" class="form-control" id="checkout-phone" required placeholder="Ej: 3001234567">
+                </div>
+                <div class="form-group">
+                    <label>Dirección de Envío *</label>
+                    <input type="text" class="form-control" id="checkout-address" required placeholder="Calle 123 #45-67, Apto 101">
+                </div>
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <input type="text" class="form-control" id="checkout-city" placeholder="Ej: Bogotá, Medellín, Cali...">
+                </div>
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select class="form-control" id="checkout-payment">
+                        <option value="Transferencia / Nequi / Bancolombia">Transferencia / Nequi / Bancolombia</option>
+                        <option value="Pago Contra Entrega">Pago Contra Entrega</option>
+                        <option value="Daviplata">Daviplata</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notas adicionales (Opcional)</label>
+                    <textarea class="form-control" id="checkout-notes" rows="2" placeholder="Indicaciones de entrega..."></textarea>
+                </div>
+
+                <div style="background: var(--bg-light); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;">Total a Pagar:</span>
+                    <span id="checkout-total-amount" style="font-size: 20px; font-weight: 700; color: var(--accent-pink);">$0</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px;">
+                    <i class="fas fa-check-circle"></i> Confirmar y Generar Pedido
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login / Register Modal -->
+    <div class="modal-overlay hidden" id="login-modal">
+        <div class="modal-content" style="max-width: 440px;">
+            <button class="modal-close-btn" onclick="app.closeLoginModal()"><i class="fas fa-times"></i></button>
+            
+            <div style="display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px;">
+                <button type="button" class="btn active" id="auth-tab-login" onclick="app.setAuthTab('login')" style="flex: 1; border-radius: 0; border-bottom: 2px solid var(--accent-pink);">
+                    Ingresar
+                </button>
+                <button type="button" class="btn" id="auth-tab-register" onclick="app.setAuthTab('register')" style="flex: 1; border-radius: 0;">
+                    Registrarse
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="app.submitLogin(event)">
+                <div class="form-group">
+                    <label>Nombre de Usuario</label>
+                    <input type="text" class="form-control" id="login-username" required placeholder="Tu usuario...">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" class="form-control" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-gold" style="width: 100%; padding: 12px; margin-top: 10px;">
+                    Iniciar Sesión
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="hidden" onsubmit="app.submitRegister(event)">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" class="form-control" id="reg-firstname" required placeholder="Ej: María">
+                </div>
+                <div class="form-group">
+                    <label>Apellido *</label>
+                    <input type="text" class="form-control" id="reg-lastname" required placeholder="Ej: Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Usuario *</label>
+                    <input type="text" class="form-control" id="reg-username" required placeholder="Ej: mariaperez">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono / Celular</label>
+                    <input type="text" class="form-control" id="reg-phone" placeholder="Ej: 3001234567">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña *</label>
+                    <input type="password" class="form-control" id="reg-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px;">
+                    Crear Cuenta
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Create/Edit Form Modal -->
+    <div class="modal-overlay hidden" id="product-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close-btn" onclick="app.closeProductModal()"><i class="fas fa-times"></i></button>
+            <h3 id="product-modal-title" style="margin-bottom: 20px; font-size: 20px;">Producto</h3>
+            
+            <form id="product-form">
+                <input type="hidden" id="prod-id">
+                
+                <div class="form-group">
+                    <label>Nombre del Producto *</label>
+                    <input type="text" class="form-control" id="prod-name" required placeholder="Ej: Base Líquida Mate">
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea class="form-control" id="prod-desc" rows="2" placeholder="Detalles del producto..."></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Precio ($) *</label>
+                        <input type="number" class="form-control" id="prod-price" required min="0" step="500" placeholder="Ej: 35000">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Producto *</label>
+                        <select class="form-control" id="prod-type" onchange="app.toggleTypeFields()">
+                            <option value="maquillaje">Maquillaje</option>
+                            <option value="ropa">Ropa</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Images section -->
                 <div class="form-group">
-                    <label>Imágenes del Producto</label>
-                    <div class="image-upload-wrapper">
-                        <input type="file" id="form-product-image-files" multiple accept="image/*" onchange="app.handleImageSelection(event)">
-                        <div class="upload-area">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Haz clic para subir o arrastra múltiples imágenes</p>
-                        </div>
-                    </div>
-                    <div class="image-previews" id="image-previews-container"></div>
+                    <label>Subcategoría</label>
+                    <select class="form-control" id="prod-category">
+                        <!-- Dynamic categories -->
+                    </select>
                 </div>
 
-                <!-- Stock section for Makeup -->
-                <div class="form-group" id="makeup-stock-container">
-                    <label for="form-product-stock">Cantidad en Inventario (Stock General)</label>
-                    <input type="number" id="form-product-stock" min="0" value="10">
+                <!-- Makeup Stock -->
+                <div class="form-group" id="makeup-stock-fields">
+                    <label>Stock General *</label>
+                    <input type="number" class="form-control" id="prod-stock" value="10" min="0">
                 </div>
 
-                <!-- Variations section for Clothing -->
-                <div class="form-group hidden" id="clothing-variations-container">
-                    <div class="variations-header">
-                        <label>Variaciones de Talla y Color</label>
-                        <button type="button" class="gold-btn btn-sm" onclick="app.addVariationRow()"><i class="fas fa-plus"></i> Variación</button>
+                <!-- Clothing Variations -->
+                <div class="form-group hidden" id="clothing-variations-fields">
+                    <label>Variaciones de Talla y Color:</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 80px auto; gap: 8px; margin-bottom: 10px;">
+                        <input type="text" class="form-control" id="new-var-size" placeholder="Talla (S, M, L)">
+                        <input type="text" class="form-control" id="new-var-color" placeholder="Color (Rojo, Azul)">
+                        <input type="number" class="form-control" id="new-var-stock" value="5" min="0">
+                        <button type="button" class="btn btn-gold" onclick="app.addProductVariation()"><i class="fas fa-plus"></i></button>
                     </div>
-                    
-                    <div class="variations-list" id="form-variations-list">
-                        <!-- Dynamic variation rows: Size | Color | Stock | Remove -->
+
+                    <table class="admin-table" style="font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th>Talla</th>
+                                <th>Color</th>
+                                <th>Stock</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="variations-table-body">
+                            <!-- Variations table -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Product Image Link & PostImg Helper -->
+                <div class="form-group">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <label style="margin-bottom: 0;">Enlace de Imagen (URL Directa)</label>
+                        <a href="https://postimages.org/" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="padding: 4px 10px; font-size: 11.5px; font-weight: 600; color: var(--accent-pink); border-color: var(--accent-pink); gap: 4px; border-radius: var(--radius-sm); text-decoration: none;">
+                            <i class="fas fa-cloud-upload-alt"></i> Subir a PostImg
+                        </a>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="url" class="form-control" id="prod-image-url" placeholder="https://i.postimg.cc/... (Pega el enlace directo de la imagen)" oninput="app.previewProductImageUrl(this.value)">
+                        <button type="button" class="btn btn-outline" onclick="app.previewProductImageUrl(document.getElementById('prod-image-url').value)" title="Cargar vista previa" style="padding: 0 14px;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <small style="color: var(--text-muted); font-size: 11.5px; display: block; margin-top: 4px;">
+                        <i class="fas fa-info-circle"></i> Sube tu imagen a PostImg, copia el <strong>Enlace Directo</strong> y pégalo aquí. ¡Tus fotos nunca se borrarán!
+                    </small>
+                </div>
+
+                <!-- Live Image Preview Box -->
+                <div id="image-preview-container" style="margin-bottom: 15px; padding: 12px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); background: var(--bg-light); text-align: center;">
+                    <div id="image-preview-placeholder" style="color: var(--text-muted); font-size: 12px; padding: 10px;">
+                        <i class="fas fa-image" style="font-size: 24px; margin-bottom: 4px; display: block; opacity: 0.5;"></i>
+                        Vista previa de la imagen aparecerá aquí
+                    </div>
+                    <div id="image-preview" style="display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                        <img id="image-preview-img" src="" alt="Vista previa" style="max-height: 140px; border-radius: 8px; object-fit: cover; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color);">
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="outline-btn" onclick="app.closeProductModal()">Cancelar</button>
-                    <button type="submit" class="gold-btn">Guardar Producto</button>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-outline" onclick="app.closeProductModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-gold">Guardar Producto</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Order Receipt / Customer Notification Modal -->
+    <div class="modal-overlay hidden" id="receipt-modal" onclick="app.closeReceiptModal()">
+        <div class="modal-content" style="max-width: 520px;" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="app.closeReceiptModal()"><i class="fas fa-times"></i></button>
+            <h3 style="margin-bottom: 15px; font-size: 19px; text-align: center; color: var(--dark-neutral);">
+                <i class="fas fa-file-invoice" style="color: var(--gold);"></i> Detalle del Pedido
+            </h3>
+            
+            <div id="receipt-order-summary">
+                <!-- Dynamic Summary -->
+            </div>
+
+            <!-- WhatsApp Direct Action Box -->
+            <div id="receipt-whatsapp-actions" style="margin-top: 20px; padding: 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #166534;">
+                        <i class="fab fa-whatsapp" style="font-size: 16px; color: #22c55e;"></i> Notificar al Cliente por WhatsApp
+                    </span>
+                </div>
+                <p style="font-size: 12px; color: #15803d; margin-bottom: 12px; line-height: 1.4;">
+                    Envía el mensaje profesional con el resumen del pedido, los productos y las instrucciones de pago con un solo toque.
+                </p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-gold" id="btn-send-whatsapp-confirm" style="flex: 1; background: #22c55e; border-color: #22c55e; color: white; padding: 10px 14px; font-size: 13.5px;" onclick="app.sendCustomerWhatsAppConfirmation()">
+                        <i class="fab fa-whatsapp"></i> Enviar Confirmación WhatsApp
+                    </button>
+                    <button class="btn btn-outline" id="btn-copy-whatsapp-text" style="padding: 10px 14px; font-size: 13px;" onclick="app.copyWhatsAppConfirmationText()" title="Copiar mensaje al portapapeles">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-outline" style="flex: 1;" onclick="app.closeReceiptModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Footer -->
     <footer class="main-footer">
-        <p>&copy; 2026 J&N Maquillaje y Moda. Todos los derechos reservados.</p>
-        <p>Diseño Elegante & Moderno</p>
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <h3>J&amp;N Store</h3>
+                <p>Tu tienda de confianza en maquillaje profesional, cosméticos y moda femenina de alta calidad.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Navegación</h4>
+                <ul>
+                    <li><a href="#" onclick="app.filterMainCategory('todos'); return false;">Catálogo</a></li>
+                    <li><a href="#" onclick="app.openCart(); return false;">Carrito de Compras</a></li>
+                    <li><a href="#" onclick="app.openLoginTab(); return false;">Mi Cuenta</a></li>
+                </ul>
+            </div>
+            <div class="footer-links">
+                <h4>Contacto</h4>
+                <ul>
+                    <li><i class="fab fa-whatsapp"></i> Atención WhatsApp</li>
+                    <li><i class="fas fa-map-marker-alt"></i> Envíos a todo el país</li>
+                    <li><i class="fas fa-shield-alt"></i> Compra 100% Segura</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 J&amp;N Store. Todos los derechos reservados.</p>
+        </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="/app.js?v=4.1" charset="UTF-8"></script>
+    <!-- Modular JS Architecture Scripts -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/api.js"></script>
+    <script src="js/core/pagination.js"></script>
+    <script src="js/auth/auth.js"></script>
+    <script src="js/store/catalog.js"></script>
+    <script src="js/store/cart.js"></script>
+    <script src="js/admin/admin-dashboard.js"></script>
+    <script src="js/admin/admin-products.js"></script>
+    <script src="js/admin/admin-categories.js"></script>
+    <script src="js/admin/admin-orders.js"></script>
+    <script src="js/admin/admin-trash.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
