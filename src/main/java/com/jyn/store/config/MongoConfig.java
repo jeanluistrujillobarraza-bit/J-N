@@ -13,12 +13,13 @@ public class MongoConfig {
     public MongoClientSettingsBuilderCustomizer mongoClientSettingsCustomizer() {
         return builder -> {
             builder.applyToSocketSettings(socket -> {
-                socket.connectTimeout(10, TimeUnit.SECONDS);
-                socket.readTimeout(30, TimeUnit.SECONDS);
+                socket.connectTimeout(20, TimeUnit.SECONDS);
+                socket.readTimeout(60, TimeUnit.SECONDS);
             });
             builder.applyToClusterSettings(cluster -> {
-                cluster.serverSelectionTimeout(10, TimeUnit.SECONDS);
+                cluster.serverSelectionTimeout(20, TimeUnit.SECONDS);
             });
         };
     }
 }
+

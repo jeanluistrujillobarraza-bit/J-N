@@ -52,35 +52,61 @@ public class ProductService {
             return new ArrayList<>(cached);
         }
 
-        List<Product> list = null;
-        try {
-            list = productRepository.findActiveProducts();
-        } catch (Exception e) {
-            System.err.println("Error en findActiveProducts: " + e.getMessage());
-        }
+        List<Product> list = new ArrayList<>();
 
-        if (list == null || list.isEmpty()) {
+        // 1. Fast direct streaming via MongoTemplate
+        if (mongoTemplate != null) {
             try {
-                list = productRepository.findAll();
+                org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(query)) {
+                    Product p = mapDocToProduct(doc, false);
+                    if (p != null) {
+                        list.add(p);
+                    }
+                }
             } catch (Exception e) {
-                System.err.println("Error en findAll: " + e.getMessage());
+                System.err.println("Aviso leyendo productos via MongoTemplate: " + e.getMessage());
             }
         }
 
-        if (list == null || list.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        List<Product> active = new ArrayList<>();
-        for (Product p : list) {
-            if (p != null && !p.isDeleted()) {
-                active.add(p);
+        // 2. Fallback to repository
+        if (list.isEmpty()) {
+            try {
+                List<Product> repoList = productRepository.findActiveProducts();
+                if (repoList != null) {
+                    for (Product p : repoList) {
+                        if (p != null && !p.isDeleted()) {
+                            list.add(p);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
             }
         }
 
-        this.cachedActiveProducts = active;
-        this.lastCacheTime = System.currentTimeMillis();
-        return new ArrayList<>(active);
+        // 3. Fallback to findAll
+        if (list.isEmpty()) {
+            try {
+                List<Product> allRepo = productRepository.findAll();
+                if (allRepo != null) {
+                    for (Product p : allRepo) {
+                        if (p != null && !p.isDeleted()) {
+                            list.add(p);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso leyendo productos via findAll: " + e.getMessage());
+            }
+        }
+
+        if (!list.isEmpty()) {
+            this.cachedActiveProducts = list;
+            this.lastCacheTime = System.currentTimeMillis();
+        }
+
+        return new ArrayList<>(list);
     }
 
     private String getSafeString(org.bson.Document doc, String key) {
@@ -126,21 +152,21 @@ public class ProductService {
                 if (o != null) {
                     String img = String.valueOf(o);
                     if (!fullGallery && isOversizedInlineImage(img)) {
+                        if (imgs.isEmpty()) {
+                            imgs.add(img);
+                        }
                         continue;
                     }
                     imgs.add(img);
-                    if (!fullGallery) break;
+                    if (!fullGallery && imgs.size() >= 2) break;
                 }
             }
         } else if (imgsObj != null && !String.valueOf(imgsObj).trim().isEmpty()) {
             String img = String.valueOf(imgsObj);
-            if (fullGallery || !isOversizedInlineImage(img)) {
-                imgs.add(img);
-            }
+            imgs.add(img);
         } else {
             String singleImg = getSafeString(doc, "image");
-            if (singleImg != null && !singleImg.trim().isEmpty()
-                    && (fullGallery || !isOversizedInlineImage(singleImg))) {
+            if (singleImg != null && !singleImg.trim().isEmpty()) {
                 imgs.add(singleImg);
             }
         }
@@ -181,10 +207,25 @@ public class ProductService {
     }
 
     private boolean isOversizedInlineImage(String img) {
-        return img != null && img.startsWith("data:") && img.length() > 12_000;
+        return img != null && img.startsWith("data:") && img.length() > 50_000;
     }
 
     public List<Product> getDeletedProducts() {
+        List<Product> list = new ArrayList<>();
+        if (mongoTemplate != null) {
+            try {
+                org.bson.Document query = new org.bson.Document("deleted", true);
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(query)) {
+                    Product p = mapDocToProduct(doc, false);
+                    if (p != null) {
+                        list.add(p);
+                    }
+                }
+                return list;
+            } catch (Exception e) {
+                System.err.println("Aviso leyendo eliminados via MongoTemplate: " + e.getMessage());
+            }
+        }
         try {
             return productRepository.findDeletedProducts();
         } catch (Exception e) {
@@ -195,6 +236,22 @@ public class ProductService {
 
     public Optional<Product> getProductById(String id) {
         if (id == null) return Optional.empty();
+        if (mongoTemplate != null) {
+            try {
+                org.bson.Document query;
+                if (org.bson.types.ObjectId.isValid(id)) {
+                    query = new org.bson.Document("_id", new org.bson.types.ObjectId(id));
+                } else {
+                    query = new org.bson.Document("_id", id);
+                }
+                org.bson.Document doc = mongoTemplate.getCollection("products").find(query).first();
+                if (doc != null) {
+                    return Optional.ofNullable(mapDocToProduct(doc, true));
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso obteniendo producto por ID via MongoTemplate: " + e.getMessage());
+            }
+        }
         return productRepository.findById(id);
     }
 
@@ -277,7 +334,14 @@ public class ProductService {
         // 2. Main category (department) filter
         if (hasMainCategory) {
             String main = mainCategory.trim();
-            List<Category> allCategories = categoryRepository.findAll();
+            List<Category> allCategories = new ArrayList<>();
+            if (categoryRepository != null) {
+                try {
+                    allCategories = categoryRepository.findAll();
+                } catch (Exception e) {
+                    System.err.println("Aviso obteniendo categorias: " + e.getMessage());
+                }
+            }
             List<String> matchingCategoryNames = new ArrayList<>();
             for (Category c : allCategories) {
                 if (main.equalsIgnoreCase(c.getParentCategory()) || main.equalsIgnoreCase(c.getName())) {
