@@ -54,11 +54,28 @@ public class ProductService {
 
         List<Product> list = new ArrayList<>();
 
-        // 1. Fast direct streaming via MongoTemplate
+        // 1. Fast direct streaming via MongoTemplate with lightweight projection
         if (mongoTemplate != null) {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(query)) {
+                org.bson.Document projection = new org.bson.Document();
+                projection.put("name", 1);
+                projection.put("description", 1);
+                projection.put("price", 1);
+                projection.put("category", 1);
+                projection.put("type", 1);
+                projection.put("generalStock", 1);
+                projection.put("stock", 1);
+                projection.put("variations", 1);
+                projection.put("deleted", 1);
+                projection.put("images", new org.bson.Document("$slice", 1));
+
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
+                        .find(query)
+                        .projection(projection)
+                        .batchSize(50);
+
+                for (org.bson.Document doc : iterable) {
                     Product p = mapDocToProduct(doc, false);
                     if (p != null) {
                         list.add(p);
@@ -215,7 +232,24 @@ public class ProductService {
         if (mongoTemplate != null) {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", true);
-                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(query)) {
+                org.bson.Document projection = new org.bson.Document();
+                projection.put("name", 1);
+                projection.put("description", 1);
+                projection.put("price", 1);
+                projection.put("category", 1);
+                projection.put("type", 1);
+                projection.put("generalStock", 1);
+                projection.put("stock", 1);
+                projection.put("variations", 1);
+                projection.put("deleted", 1);
+                projection.put("images", new org.bson.Document("$slice", 1));
+
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
+                        .find(query)
+                        .projection(projection)
+                        .batchSize(50);
+
+                for (org.bson.Document doc : iterable) {
                     Product p = mapDocToProduct(doc, false);
                     if (p != null) {
                         list.add(p);
