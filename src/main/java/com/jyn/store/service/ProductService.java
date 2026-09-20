@@ -53,7 +53,6 @@ public class ProductService {
         }
 
         List<Product> list = new ArrayList<>();
-        
         if (mongoTemplate != null) {
             try {
                 for (org.bson.Document doc : mongoTemplate.getCollection("products").find()) {
@@ -63,21 +62,21 @@ public class ProductService {
                             list.add(p);
                         }
                     } catch (Exception docEx) {
-                        System.err.println("Error procesando documento individual de producto: " + docEx.getMessage());
                         try {
-                            // Fallback básico para nunca perder el producto
                             Product fallback = new Product();
                             fallback.setId(doc.get("_id") != null ? doc.get("_id").toString() : null);
-                            fallback.setName(doc.get("name") != null ? String.valueOf(doc.get("name")) : "Producto");
-                            fallback.setCategory("General");
-                            fallback.setType("general");
+                            fallback.setName(getSafeString(doc, "name") != null ? getSafeString(doc, "name") : "Producto");
+                            fallback.setCategory(getSafeString(doc, "category") != null ? getSafeString(doc, "category") : "General");
+                            fallback.setType(getSafeString(doc, "type") != null ? getSafeString(doc, "type") : "general");
+                            Object delObj = doc.get("deleted");
+                            fallback.setDeleted(delObj instanceof Boolean && (Boolean) delObj);
                             list.add(fallback);
                         } catch (Exception ignored) {}
                     }
                 }
                 System.out.println("Cargados " + list.size() + " productos optimizados desde MongoDB.");
             } catch (Exception ex) {
-                System.err.println("Error en lectura optimizada de MongoDB: " + ex.getMessage());
+                System.err.println("Error en lectura directa de MongoDB: " + ex.getMessage());
             }
         }
 
@@ -96,10 +95,6 @@ public class ProductService {
             if (p != null && !p.isDeleted()) {
                 active.add(p);
             }
-        }
-
-        if (active.isEmpty() && !list.isEmpty()) {
-            active = list;
         }
 
         this.cachedActiveProducts = active;
@@ -148,15 +143,23 @@ public class ProductService {
         if (imgsObj instanceof List) {
             for (Object o : (List<?>) imgsObj) {
                 if (o != null) {
-                    imgs.add(String.valueOf(o));
-                    if (!fullGallery) break; // Keep only 1 image for fast list loading
+                    String img = String.valueOf(o);
+                    if (!fullGallery && isOversizedInlineImage(img)) {
+                        continue;
+                    }
+                    imgs.add(img);
+                    if (!fullGallery) break;
                 }
             }
         } else if (imgsObj != null && !String.valueOf(imgsObj).trim().isEmpty()) {
-            imgs.add(String.valueOf(imgsObj));
+            String img = String.valueOf(imgsObj);
+            if (fullGallery || !isOversizedInlineImage(img)) {
+                imgs.add(img);
+            }
         } else {
             String singleImg = getSafeString(doc, "image");
-            if (singleImg != null && !singleImg.trim().isEmpty()) {
+            if (singleImg != null && !singleImg.trim().isEmpty()
+                    && (fullGallery || !isOversizedInlineImage(singleImg))) {
                 imgs.add(singleImg);
             }
         }
@@ -196,13 +199,27 @@ public class ProductService {
         return p;
     }
 
+    private boolean isOversizedInlineImage(String img) {
+        return img != null && img.startsWith("data:") && img.length() > 12_000;
+    }
+
     public List<Product> getDeletedProducts() {
         try {
-            List<Product> all = productRepository.findAll();
             List<Product> deleted = new ArrayList<>();
-            for (Product p : all) {
-                if (p != null && p.isDeleted()) {
-                    deleted.add(p);
+            if (mongoTemplate != null) {
+                for (org.bson.Document doc : mongoTemplate.getCollection("products").find(new org.bson.Document("deleted", true))) {
+                    Product p = mapDocToProduct(doc, false);
+                    if (p != null) {
+                        deleted.add(p);
+                    }
+                }
+            }
+            if (deleted.isEmpty()) {
+                List<Product> all = productRepository.findAll();
+                for (Product p : all) {
+                    if (p != null && p.isDeleted()) {
+                        deleted.add(p);
+                    }
                 }
             }
             return deleted;
