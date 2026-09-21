@@ -51,8 +51,8 @@ class AdminTrashModule {
 
     async fetchDeletedProducts() {
         try {
-            const data = await api.get('/api/products/trash');
-            this.deletedProducts = Array.isArray(data) ? data : [];
+            const data = await api.get('/api/products/deleted');
+            this.deletedProducts = Array.isArray(data) ? data : (data && Array.isArray(data.content) ? data.content : []);
         } catch (e) {
             this.deletedProducts = [];
         }
@@ -60,10 +60,15 @@ class AdminTrashModule {
 
     async fetchDeletedOrders() {
         try {
-            const data = await api.get('/api/orders/trash');
-            this.deletedOrders = Array.isArray(data) ? data : [];
+            const data = await api.get('/api/orders/deleted');
+            this.deletedOrders = Array.isArray(data) ? data : (data && Array.isArray(data.content) ? data.content : []);
         } catch (e) {
-            this.deletedOrders = [];
+            try {
+                const data2 = await api.get('/api/orders/trash');
+                this.deletedOrders = Array.isArray(data2) ? data2 : [];
+            } catch (err) {
+                this.deletedOrders = [];
+            }
         }
     }
 
@@ -88,7 +93,7 @@ class AdminTrashModule {
                     <tr>
                         <td colspan="5" style="text-align:center; color:var(--text-secondary); padding:30px;">
                             <i class="fas fa-trash-restore" style="font-size:24px; margin-bottom:6px; display:block; color:var(--gold);"></i>
-                            La papelera de productos está vacía.
+                            La papelera de productos está vacía. Todos los productos están activos.
                         </td>
                     </tr>
                 `;
@@ -162,12 +167,25 @@ class AdminTrashModule {
 
     async restoreProduct(id) {
         try {
-            await api.put(`/api/products/${id}/restore`);
+            await api.post(`/api/products/${id}/restore`);
             Utils.showToast('Producto restaurado exitosamente.', 'success');
             await this.render();
-            this.store.catalog.fetchProducts(true);
+            if (this.store.adminProducts) await this.store.adminProducts.render();
         } catch (err) {
             Utils.showToast('Error al restaurar producto: ' + err.message, 'danger');
+        }
+    }
+
+    async restoreAllProducts() {
+        if (!confirm('¿Deseas restaurar y renovar TODOS los productos de la papelera para que aparezcan en la tienda?')) return;
+
+        try {
+            const res = await api.post('/api/products/restore-all');
+            Utils.showToast(res.message || 'Todos los productos han sido restaurados.', 'success');
+            await this.render();
+            if (this.store.adminProducts) await this.store.adminProducts.render();
+        } catch (err) {
+            Utils.showToast('Error al restaurar todos los productos: ' + err.message, 'danger');
         }
     }
 

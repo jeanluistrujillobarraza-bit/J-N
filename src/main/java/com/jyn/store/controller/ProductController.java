@@ -123,6 +123,24 @@ public class ProductController {
         }
     }
 
+    @PostMapping("/restore-all")
+    public ResponseEntity<?> restoreAllProducts(HttpSession session) {
+        if (isNotAdmin(session)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado. Sesión expirada."));
+        }
+        try {
+            int restoredCount = productService.restoreAllDeletedProducts();
+            return ResponseEntity.ok(Map.of(
+                    "message", "Todos los productos eliminados han sido renovados y restaurados exitosamente",
+                    "restoredCount", restoredCount
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al restaurar todos los productos: " + e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{id}/permanent")
     public ResponseEntity<?> permanentDeleteProduct(@PathVariable String id, HttpSession session) {
         if (isNotAdmin(session)) {

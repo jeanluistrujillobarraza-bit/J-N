@@ -264,6 +264,7 @@ class JNStoreApp {
     // Admin Trash Actions
     setTrashSubTab(tab) { this.adminTrash.setTrashSubTab(tab); }
     restoreProduct(id) { this.adminTrash.restoreProduct(id); }
+    restoreAllProducts() { this.adminTrash.restoreAllProducts(); }
     permanentDeleteProduct(id) { this.adminTrash.permanentDeleteProduct(id); }
     restoreOrder(id) { this.adminTrash.restoreOrder(id); }
     permanentDeleteOrder(id) { this.adminTrash.permanentDeleteOrder(id); }

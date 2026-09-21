@@ -343,6 +343,37 @@ public class ProductService {
         }
     }
 
+    // Restore ALL deleted products back to active catalog
+    public int restoreAllDeletedProducts() {
+        int count = 0;
+        if (mongoTemplate != null) {
+            try {
+                org.bson.Document query = new org.bson.Document("deleted", true);
+                org.bson.Document update = new org.bson.Document("$set", new org.bson.Document("deleted", false));
+                var result = mongoTemplate.getCollection("products").updateMany(query, update);
+                count = (int) result.getModifiedCount();
+            } catch (Exception e) {
+                System.err.println("Aviso restaurando todos via mongoTemplate: " + e.getMessage());
+            }
+        }
+        if (count == 0) {
+            try {
+                List<Product> deleted = productRepository.findDeletedProducts();
+                if (deleted != null && !deleted.isEmpty()) {
+                    for (Product p : deleted) {
+                        p.setDeleted(false);
+                        productRepository.save(p);
+                        count++;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso restaurando todos via repository: " + e.getMessage());
+            }
+        }
+        invalidateCache();
+        return count;
+    }
+
     // Permanent Deletion
     public void permanentDeleteProduct(String id) {
         productRepository.deleteById(id);

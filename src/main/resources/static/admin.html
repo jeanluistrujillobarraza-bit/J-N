@@ -241,14 +241,17 @@
 
                 <!-- 5. Trash Tab -->
                 <div class="admin-tab-content hidden" id="content-trash">
-                    <div class="admin-header-row">
+                    <div class="admin-header-row" style="flex-wrap: wrap; gap: 10px;">
                         <h3>Papelera de Reciclaje</h3>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <button class="pill active" id="trash-tab-products-btn" onclick="app.setTrashSubTab('products')">
                                 <i class="fas fa-boxes"></i> Productos
                             </button>
                             <button class="pill" id="trash-tab-orders-btn" onclick="app.setTrashSubTab('orders')">
                                 <i class="fas fa-receipt"></i> Pedidos
+                            </button>
+                            <button class="btn btn-gold" id="btn-restore-all-products" onclick="app.restoreAllProducts()" style="padding: 7px 14px; font-size: 13px;">
+                                <i class="fas fa-undo-alt"></i> Restaurar Todos los Productos
                             </button>
                         </div>
                     </div>
