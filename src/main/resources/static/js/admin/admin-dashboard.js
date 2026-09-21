@@ -32,9 +32,10 @@ class AdminDashboardModule {
                 if (totalSalesEl) totalSalesEl.innerText = Utils.formatPrice(stats.totalRevenue || 0);
             }
 
-            // Products list reference
-            const allProducts = this.store.catalog.allProducts || [];
-            const totalProductsCount = (stats && stats.totalProducts !== undefined) ? stats.totalProducts : allProducts.length;
+            // Products count from server stats
+            const totalProductsCount = stats && stats.totalProducts !== undefined ? stats.totalProducts : 0;
+            const makeupCount = stats && stats.makeupCount !== undefined ? stats.makeupCount : 0;
+            const clothingCount = stats && stats.clothingCount !== undefined ? stats.clothingCount : 0;
 
             if (grid) {
                 grid.innerHTML = '';
@@ -53,32 +54,32 @@ class AdminDashboardModule {
                 `;
                 grid.appendChild(totalCard);
 
-                // Department Cards
-                const mainCats = this.store.catalog.mainCategories && this.store.catalog.mainCategories.length > 0
-                    ? this.store.catalog.mainCategories.map(m => m.name)
-                    : ['Maquillaje', 'Ropa'];
+                // Department Cards (Maquillaje & Ropa)
+                const makeupCard = document.createElement('div');
+                makeupCard.className = 'stat-card';
+                makeupCard.innerHTML = `
+                    <div class="stat-icon pink-bg">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4>${makeupCount}</h4>
+                        <p>Maquillaje</p>
+                    </div>
+                `;
+                grid.appendChild(makeupCard);
 
-                mainCats.forEach((mainName) => {
-                    const count = allProducts.filter(p => {
-                        const t = (p.type || '').toLowerCase();
-                        const c = (p.category || '').toLowerCase();
-                        const m = mainName.toLowerCase();
-                        return t === m || c === m;
-                    }).length;
-
-                    const card = document.createElement('div');
-                    card.className = 'stat-card';
-                    card.innerHTML = `
-                        <div class="stat-icon pink-bg">
-                            <i class="fas fa-tag"></i>
-                        </div>
-                        <div class="stat-info">
-                            <h4>${count}</h4>
-                            <p>${mainName}</p>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
+                const clothingCard = document.createElement('div');
+                clothingCard.className = 'stat-card';
+                clothingCard.innerHTML = `
+                    <div class="stat-icon" style="background-color: rgba(212, 175, 55, 0.15); color: var(--gold);">
+                        <i class="fas fa-tshirt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4>${clothingCount}</h4>
+                        <p>Ropa</p>
+                    </div>
+                `;
+                grid.appendChild(clothingCard);
 
                 // Alerts Card
                 const alertCount = (stats && stats.criticalStockCount !== undefined) ? stats.criticalStockCount : alerts.length;

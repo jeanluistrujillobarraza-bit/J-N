@@ -160,8 +160,14 @@ public class ProductService {
         
         String cat = getSafeString(doc, "category");
         String type = getSafeString(doc, "type");
-        p.setCategory(cat != null ? cat : (type != null ? type : "General"));
-        p.setType(type != null ? type : (cat != null ? cat.toLowerCase() : "general"));
+        if (type == null || type.trim().isEmpty()) {
+            type = "maquillaje";
+        }
+        if (cat == null || cat.trim().isEmpty()) {
+            cat = "General";
+        }
+        p.setCategory(cat);
+        p.setType(type.trim().toLowerCase());
         
         Object stockObj = doc.get("generalStock");
         if (stockObj == null) {
