@@ -70,17 +70,22 @@ public class ProductService {
                 projection.put("deleted", 1);
                 projection.put("images", new org.bson.Document("$slice", 1));
 
-                List<org.bson.Document> docs = new ArrayList<>();
-                mongoTemplate.getCollection("products")
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
                         .find(query)
                         .projection(projection)
-                        .batchSize(500)
-                        .into(docs);
+                        .batchSize(100);
 
-                for (org.bson.Document doc : docs) {
-                    Product p = mapDocToProduct(doc, false);
-                    if (p != null) {
-                        list.add(p);
+                try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
+                    while (cursor.hasNext()) {
+                        try {
+                            org.bson.Document doc = cursor.next();
+                            Product p = mapDocToProduct(doc, false);
+                            if (p != null) {
+                                list.add(p);
+                            }
+                        } catch (Exception docEx) {
+                            System.err.println("Aviso leyendo documento individual: " + docEx.getMessage());
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -88,8 +93,8 @@ public class ProductService {
             }
         }
 
-        // 2. Fallback to repository
-        if (list.isEmpty()) {
+        // 2. Fallback to repository solo si mongoTemplate no devolvió nada
+        if (list.isEmpty() && mongoTemplate == null) {
             try {
                 List<Product> repoList = productRepository.findActiveProducts();
                 if (repoList != null) {
@@ -246,17 +251,22 @@ public class ProductService {
                 projection.put("deleted", 1);
                 projection.put("images", new org.bson.Document("$slice", 1));
 
-                List<org.bson.Document> docs = new ArrayList<>();
-                mongoTemplate.getCollection("products")
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
                         .find(query)
                         .projection(projection)
-                        .batchSize(500)
-                        .into(docs);
+                        .batchSize(100);
 
-                for (org.bson.Document doc : docs) {
-                    Product p = mapDocToProduct(doc, false);
-                    if (p != null) {
-                        list.add(p);
+                try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
+                    while (cursor.hasNext()) {
+                        try {
+                            org.bson.Document doc = cursor.next();
+                            Product p = mapDocToProduct(doc, false);
+                            if (p != null) {
+                                list.add(p);
+                            }
+                        } catch (Exception docEx) {
+                            System.err.println("Aviso leyendo documento eliminado: " + docEx.getMessage());
+                        }
                     }
                 }
                 return list;
