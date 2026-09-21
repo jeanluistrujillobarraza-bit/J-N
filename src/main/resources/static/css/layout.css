@@ -241,20 +241,26 @@
 .mobile-menu-drawer {
     position: fixed;
     top: 0;
-    left: -320px;
+    left: 0;
     width: 300px;
     max-width: 85vw;
     height: 100vh;
+    height: 100dvh;
     background: white;
     z-index: 1100;
     box-shadow: 5px 0 25px rgba(0, 0, 0, 0.15);
-    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translate3d(-105%, 0, 0);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
     display: flex;
     flex-direction: column;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .mobile-menu-drawer.open {
-    left: 0;
+    transform: translate3d(0, 0, 0);
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .mobile-menu-overlay {
@@ -351,30 +357,49 @@
         padding: 0 12px;
     }
     .header-content {
-        height: 60px;
-        gap: 8px;
+        height: 56px;
+        gap: 6px;
     }
     .brand-text h1 {
-        font-size: 18px;
+        font-size: 17px;
     }
     .brand-text p {
-        font-size: 8.5px;
+        font-size: 8px;
         letter-spacing: 0.5px;
     }
     .brand-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
+        width: 30px;
+        height: 30px;
+        font-size: 13px;
     }
     .header-actions {
-        gap: 6px;
+        gap: 5px;
+    }
+    #auth-actions {
+        gap: 5px !important;
     }
     .cart-btn, .admin-btn {
-        padding: 7px 10px;
+        padding: 6px 9px;
         font-size: 12px;
+        border-radius: var(--radius-full);
     }
     .cart-btn span:not(.cart-badge), .admin-btn span {
         display: none;
+    }
+    #header-admin-btn {
+        padding: 6px 9px !important;
+        font-size: 12px !important;
+    }
+    #header-admin-btn span {
+        display: none !important;
+    }
+    #header-user-btn {
+        padding: 6px 9px !important;
+        font-size: 12px !important;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .footer-grid {
         grid-template-columns: 1fr;
