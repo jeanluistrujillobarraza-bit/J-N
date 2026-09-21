@@ -39,9 +39,13 @@ public class ProductService {
     public void warmUpCache() {
         new Thread(() -> {
             try {
-                Thread.sleep(800);
+                Thread.sleep(1000);
+                int restored = restoreAllDeletedProducts();
+                System.out.println(">>> [J&N Store] Auto-restauración de productos completada: " + restored + " productos activados.");
                 getAllProducts();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                System.err.println(">>> [J&N Store] Aviso en inicialización: " + e.getMessage());
+            }
         }).start();
     }
 
