@@ -28,7 +28,7 @@ public class ProductService {
 
     private volatile List<Product> cachedActiveProducts = null;
     private volatile long lastCacheTime = 0;
-    private static final long CACHE_TTL_MS = 60_000;
+    private static final long CACHE_TTL_MS = 30 * 60 * 1000L; // 30 minutos de caché ultra-rápida en RAM
 
     public synchronized void invalidateCache() {
         this.cachedActiveProducts = null;

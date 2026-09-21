@@ -41,7 +41,7 @@ public class ProductController {
             @RequestParam(required = false) String query) {
         List<Product> products = productService.searchProducts(category, mainCategory, query);
         return ResponseEntity.ok()
-                .cacheControl(org.springframework.http.CacheControl.maxAge(15, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
+                .cacheControl(org.springframework.http.CacheControl.maxAge(60, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
                 .body(products);
     }
 
