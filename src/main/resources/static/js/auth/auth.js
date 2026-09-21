@@ -166,8 +166,13 @@ class AuthModule {
         this.isClient = false;
         this.currentUser = null;
         this.updateAuthUI();
-        this.store.closeAdminSection();
-        Utils.showToast('Sesión cerrada correctamente.', 'info');
+        
+        Utils.showToast('Sesión cerrada correctamente. Redirigiendo...', 'info');
+        
+        // Redirigir siempre a la tienda principal al cerrar sesión
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 500);
     }
 
     togglePasswordVisibility(inputId, btnEl) {

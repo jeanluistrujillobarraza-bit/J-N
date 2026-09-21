@@ -4,17 +4,17 @@
  */
 class JNStoreApp {
     constructor() {
-        // Initialize submodules
-        this.auth = new AuthModule(this);
-        this.catalog = new CatalogModule(this);
-        this.cart = new CartModule(this);
+        // Initialize submodules if available in current page
+        this.auth = typeof AuthModule !== 'undefined' ? new AuthModule(this) : null;
+        this.catalog = typeof CatalogModule !== 'undefined' ? new CatalogModule(this) : null;
+        this.cart = typeof CartModule !== 'undefined' ? new CartModule(this) : null;
         
         // Admin modules
-        this.adminDashboard = new AdminDashboardModule(this);
-        this.adminProducts = new AdminProductsModule(this);
-        this.adminCategories = new AdminCategoriesModule(this);
-        this.adminOrders = new AdminOrdersModule(this);
-        this.adminTrash = new AdminTrashModule(this);
+        this.adminDashboard = typeof AdminDashboardModule !== 'undefined' ? new AdminDashboardModule(this) : null;
+        this.adminProducts = typeof AdminProductsModule !== 'undefined' ? new AdminProductsModule(this) : null;
+        this.adminCategories = typeof AdminCategoriesModule !== 'undefined' ? new AdminCategoriesModule(this) : null;
+        this.adminOrders = typeof AdminOrdersModule !== 'undefined' ? new AdminOrdersModule(this) : null;
+        this.adminTrash = typeof AdminTrashModule !== 'undefined' ? new AdminTrashModule(this) : null;
 
         this.currentAdminTab = 'dashboard';
 
@@ -24,27 +24,34 @@ class JNStoreApp {
 
     setupPaginationBindings() {
         // Catalog
-        this['pagination_catalog-pagination-container'] = (p) => this.catalog.pagination.goToPage(p);
-        this['paginationSize_catalog-pagination-container'] = (s) => this.catalog.pagination.changePageSize(s);
+        if (this.catalog && this.catalog.pagination) {
+            this['pagination_catalog-pagination-container'] = (p) => this.catalog.pagination.goToPage(p);
+            this['paginationSize_catalog-pagination-container'] = (s) => this.catalog.pagination.changePageSize(s);
+        }
 
         // Admin Products
-        this['pagination_admin-products-pagination-container'] = (p) => this.adminProducts.pagination.goToPage(p);
-        this['paginationSize_admin-products-pagination-container'] = (s) => this.adminProducts.pagination.changePageSize(s);
+        if (this.adminProducts && this.adminProducts.pagination) {
+            this['pagination_admin-products-pagination-container'] = (p) => this.adminProducts.pagination.goToPage(p);
+            this['paginationSize_admin-products-pagination-container'] = (s) => this.adminProducts.pagination.changePageSize(s);
+        }
 
         // Admin Orders
-        this['pagination_admin-orders-pagination-container'] = (p) => this.adminOrders.pagination.goToPage(p);
-        this['paginationSize_admin-orders-pagination-container'] = (s) => this.adminOrders.pagination.changePageSize(s);
+        if (this.adminOrders && this.adminOrders.pagination) {
+            this['pagination_admin-orders-pagination-container'] = (p) => this.adminOrders.pagination.goToPage(p);
+            this['paginationSize_admin-orders-pagination-container'] = (s) => this.adminOrders.pagination.changePageSize(s);
+        }
 
         // Admin Trash
-        this['pagination_admin-trash-pagination-container'] = (p) => this.adminTrash.pagination.goToPage(p);
-        this['paginationSize_admin-trash-pagination-container'] = (s) => this.adminTrash.pagination.changePageSize(s);
+        if (this.adminTrash && this.adminTrash.pagination) {
+            this['pagination_admin-trash-pagination-container'] = (p) => this.adminTrash.pagination.goToPage(p);
+            this['paginationSize_admin-trash-pagination-container'] = (s) => this.adminTrash.pagination.changePageSize(s);
+        }
     }
 
     async init() {
-        console.log('>>> [J&N Store] Inicializando aplicación modular...');
-        await this.auth.checkSession();
-        await this.catalog.init();
-        this.cart.renderCart();
+        if (this.auth) await this.auth.checkSession();
+        if (this.catalog) await this.catalog.init();
+        if (this.cart) this.cart.renderCart();
 
         // Search Input live debouncing
         const searchInput = document.getElementById('search-input');
