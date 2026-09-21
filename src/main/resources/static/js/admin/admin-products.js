@@ -8,59 +8,63 @@ class AdminProductsModule {
         this.searchQuery = '';
         this.selectedTypeFilter = 'todos';
         this.variationsList = [];
+        this.products = [];
 
-        // Real Pagination Component for Admin Products Table
+        // Real Server-Side Pagination Component for Admin Products Table
         this.pagination = new Pagination({
             containerId: 'admin-products-pagination-container',
             pageSize: 15,
             pageSizeOptions: [10, 15, 25, 50, 100],
-            onPageChange: (items) => this.renderTableRows(items)
+            isServerSide: true,
+            onServerPageChange: (page, size) => this.fetchProducts(page, size)
         });
     }
 
     async render() {
-        await this.store.catalog.fetchProducts(true);
-        this.applyFiltersAndRender();
         this.populateCategorySelects();
+        await this.fetchProducts(0, this.pagination.pageSize);
+    }
+
+    async fetchProducts(page = 0, size = this.pagination.pageSize) {
+        const params = new URLSearchParams();
+        params.append('page', page);
+        params.append('size', size);
+        if (this.selectedTypeFilter && this.selectedTypeFilter !== 'todos') {
+            params.append('type', this.selectedTypeFilter);
+        }
+        if (this.searchQuery && this.searchQuery.trim()) {
+            params.append('query', this.searchQuery.trim());
+        }
+
+        try {
+            const data = await api.get(`/api/products?${params.toString()}`);
+            if (data && data.content) {
+                this.products = data.content;
+                this.pagination.setServerPage(data);
+                this.renderTableRows(data.content);
+            } else if (Array.isArray(data)) {
+                this.products = data;
+                this.pagination.setItems(data);
+                this.renderTableRows(data.slice(0, size));
+            } else {
+                this.products = [];
+                this.renderTableRows([]);
+            }
+        } catch (e) {
+            console.error('[AdminProducts] Error al cargar productos:', e);
+            this.products = [];
+            this.renderTableRows([]);
+        }
     }
 
     setSearch(q) {
         this.searchQuery = q || '';
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     setTypeFilter(type) {
         this.selectedTypeFilter = type || 'todos';
-        this.applyFiltersAndRender();
-    }
-
-    applyFiltersAndRender() {
-        const all = this.store.catalog.allProducts || [];
-        const q = (this.searchQuery || '').trim().toLowerCase();
-        const typeFilter = this.selectedTypeFilter.toLowerCase();
-
-        const filtered = all.filter(p => {
-            if (p.deleted) return false;
-
-            if (typeFilter !== 'todos') {
-                const t = (p.type || '').toLowerCase();
-                const c = (p.category || '').toLowerCase();
-                if (t !== typeFilter && c !== typeFilter) return false;
-            }
-
-            if (q) {
-                const nameMatch = (p.name || '').toLowerCase().includes(q);
-                const descMatch = (p.description || '').toLowerCase().includes(q);
-                const catMatch = (p.category || '').toLowerCase().includes(q);
-                if (!nameMatch && !descMatch && !catMatch) return false;
-            }
-
-            return true;
-        });
-
-        const pageItems = this.pagination.setItems(filtered);
-        this.pagination.render();
-        this.renderTableRows(pageItems);
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     renderTableRows(items) {
@@ -129,7 +133,7 @@ class AdminProductsModule {
         `;
     }
 
-    openProductModal(id = null) {
+    async openProductModal(id = null) {
         const modal = document.getElementById('product-modal');
         if (!modal) return;
 
@@ -147,7 +151,12 @@ class AdminProductsModule {
         this.populateCategorySelects();
 
         if (id) {
-            const prod = this.store.catalog.allProducts.find(p => p.id === id);
+            let prod = this.products.find(p => p.id === id);
+            try {
+                const fullProd = await api.get(`/api/products/${id}`);
+                if (fullProd && fullProd.id) prod = fullProd;
+            } catch (e) {}
+
             if (prod) {
                 if (titleEl) titleEl.innerText = 'Editar Producto';
                 if (idInput) idInput.value = prod.id;

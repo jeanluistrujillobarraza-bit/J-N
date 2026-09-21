@@ -11,24 +11,39 @@ class Pagination {
         this.pageSizeOptions = options.pageSizeOptions || [12, 16, 24, 48];
         this.currentPage = 1;
         this.items = [];
+        this.totalElements = 0;
+        this.totalPages = 1;
+        this.isServerSide = options.isServerSide || false;
         this.onPageChange = options.onPageChange || (() => {});
+        this.onServerPageChange = options.onServerPageChange || options.onPageChange || (() => {});
         this.id = 'pg_' + Math.random().toString(36).substring(2, 9);
 
-        // Register in static map for clean delegated lookups
         Pagination.instances.set(this.id, this);
     }
 
+    setServerPage(pageData) {
+        this.isServerSide = true;
+        this.currentPage = (pageData.page !== undefined ? pageData.page : 0) + 1;
+        this.pageSize = pageData.size || this.pageSize;
+        this.totalElements = pageData.totalElements || 0;
+        this.totalPages = Math.max(1, pageData.totalPages || Math.ceil(this.totalElements / this.pageSize));
+        this.render();
+    }
+
     setItems(items) {
+        this.isServerSide = false;
         this.items = items || [];
-        const totalPages = this.getTotalPages();
-        if (this.currentPage > totalPages) {
-            this.currentPage = Math.max(1, totalPages);
+        this.totalElements = this.items.length;
+        this.totalPages = this.getTotalPages();
+        if (this.currentPage > this.totalPages) {
+            this.currentPage = Math.max(1, this.totalPages);
         }
         return this.getCurrentPageItems();
     }
 
     getTotalPages() {
-        return Math.max(1, Math.ceil(this.items.length / this.pageSize));
+        if (this.isServerSide) return Math.max(1, this.totalPages);
+        return Math.max(1, Math.ceil((this.items ? this.items.length : 0) / this.pageSize));
     }
 
     getCurrentPageItems() {
@@ -43,9 +58,14 @@ class Pagination {
         const targetPage = Number(page);
         if (isNaN(targetPage) || targetPage < 1 || targetPage > totalPages) return;
         this.currentPage = targetPage;
-        const pageItems = this.getCurrentPageItems();
-        this.render();
-        this.onPageChange(pageItems, this.currentPage, totalPages);
+        
+        if (this.isServerSide) {
+            this.onServerPageChange(this.currentPage - 1, this.pageSize);
+        } else {
+            const pageItems = this.getCurrentPageItems();
+            this.render();
+            this.onPageChange(pageItems, this.currentPage, totalPages);
+        }
     }
 
     changePageSize(newSize) {
@@ -53,22 +73,28 @@ class Pagination {
         if (isNaN(size) || size <= 0) return;
         this.pageSize = size;
         this.currentPage = 1;
-        const pageItems = this.getCurrentPageItems();
-        this.render();
-        this.onPageChange(pageItems, this.currentPage, this.getTotalPages());
+
+        if (this.isServerSide) {
+            this.onServerPageChange(0, this.pageSize);
+        } else {
+            const pageItems = this.getCurrentPageItems();
+            this.render();
+            this.onPageChange(pageItems, this.currentPage, this.getTotalPages());
+        }
     }
 
     render() {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
-        if (!this.items || this.items.length === 0) {
+        const totalItems = this.isServerSide ? this.totalElements : (this.items ? this.items.length : 0);
+        const totalPages = this.getTotalPages();
+
+        if (totalItems === 0) {
             container.innerHTML = '';
             return;
         }
 
-        const totalItems = this.items.length;
-        const totalPages = this.getTotalPages();
         const start = (this.currentPage - 1) * this.pageSize + 1;
         const end = Math.min(this.currentPage * this.pageSize, totalItems);
 
@@ -154,3 +180,4 @@ class Pagination {
 }
 
 window.Pagination = Pagination;
+

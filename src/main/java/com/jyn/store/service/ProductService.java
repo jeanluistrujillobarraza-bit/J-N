@@ -440,6 +440,56 @@ public class ProductService {
         return allActive;
     }
 
+    public com.jyn.store.dto.PageResponse<Product> getProductsPaged(
+            int page, int size, String category, String mainCategory, String query, String type) {
+        
+        List<Product> filtered = searchProducts(category, mainCategory, query);
+        
+        if (type != null && !type.trim().isEmpty() && !type.equalsIgnoreCase("todos")) {
+            String tLower = type.trim().toLowerCase();
+            List<Product> typeFiltered = new ArrayList<>();
+            for (Product p : filtered) {
+                if (p.getType() != null && p.getType().equalsIgnoreCase(tLower)) {
+                    typeFiltered.add(p);
+                }
+            }
+            filtered = typeFiltered;
+        }
+
+        long totalElements = filtered.size();
+        int safePage = Math.max(0, page);
+        int safeSize = size > 0 ? size : 16;
+        
+        int fromIndex = safePage * safeSize;
+        List<Product> pageContent;
+        if (fromIndex >= filtered.size()) {
+            pageContent = new ArrayList<>();
+        } else {
+            int toIndex = Math.min(fromIndex + safeSize, filtered.size());
+            pageContent = new ArrayList<>(filtered.subList(fromIndex, toIndex));
+        }
+
+        return new com.jyn.store.dto.PageResponse<>(pageContent, safePage, safeSize, totalElements);
+    }
+
+    public com.jyn.store.dto.PageResponse<Product> getDeletedProductsPaged(int page, int size) {
+        List<Product> deleted = getDeletedProducts();
+        long totalElements = deleted.size();
+        int safePage = Math.max(0, page);
+        int safeSize = size > 0 ? size : 15;
+        
+        int fromIndex = safePage * safeSize;
+        List<Product> pageContent;
+        if (fromIndex >= deleted.size()) {
+            pageContent = new ArrayList<>();
+        } else {
+            int toIndex = Math.min(fromIndex + safeSize, deleted.size());
+            pageContent = new ArrayList<>(deleted.subList(fromIndex, toIndex));
+        }
+
+        return new com.jyn.store.dto.PageResponse<>(pageContent, safePage, safeSize, totalElements);
+    }
+
     public List<StockAlert> getStockAlerts() {
         List<StockAlert> alerts = new ArrayList<>();
         List<Product> products = getAllProducts();

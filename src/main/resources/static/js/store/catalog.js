@@ -6,7 +6,6 @@ class CatalogModule {
     constructor(store) {
         this.store = store;
         this.allProducts = [];
-        this.filteredProducts = [];
         this.mainCategories = [];
         this.categories = [];
         
@@ -21,12 +20,13 @@ class CatalogModule {
         this.selectedColor = '';
         this.selectedDetailImageIndex = 0;
 
-        // Real Pagination Component for Catalog
+        // Server-Side Real Pagination Component for Catalog
         this.pagination = new Pagination({
             containerId: 'catalog-pagination-container',
             pageSize: 16,
             pageSizeOptions: [12, 16, 24, 48],
-            onPageChange: (items) => this.renderProductCards(items)
+            isServerSide: true,
+            onServerPageChange: (page, size) => this.fetchProducts(page, size)
         });
     }
 
@@ -35,7 +35,7 @@ class CatalogModule {
             this.fetchMainCategories(),
             this.fetchCategories()
         ]);
-        await this.fetchProducts();
+        await this.fetchProducts(0, this.pagination.pageSize);
     }
 
     async fetchMainCategories() {
@@ -57,21 +57,41 @@ class CatalogModule {
         }
     }
 
-    async fetchProducts(force = false) {
-        if (!force && this.allProducts && this.allProducts.length > 0) {
-            this.applyFiltersAndRender();
-            return;
+    async fetchProducts(page = 0, size = this.pagination.pageSize) {
+        this.renderProductsSkeleton();
+
+        const params = new URLSearchParams();
+        params.append('page', page);
+        params.append('size', size);
+
+        if (this.activeMainCategory && this.activeMainCategory.toLowerCase() !== 'todos') {
+            params.append('mainCategory', this.activeMainCategory);
+        }
+        if (this.activeCategory && this.activeCategory.toLowerCase() !== 'todos') {
+            params.append('category', this.activeCategory);
+        }
+        if (this.searchQuery && this.searchQuery.trim()) {
+            params.append('query', this.searchQuery.trim());
         }
 
-        this.renderProductsSkeleton();
         try {
-            const data = await api.get('/api/products');
-            this.allProducts = Array.isArray(data) ? data : [];
-            this.applyFiltersAndRender();
+            const data = await api.get(`/api/products?${params.toString()}`);
+            if (data && data.content) {
+                this.allProducts = data.content;
+                this.pagination.setServerPage(data);
+                this.renderProductCards(data.content);
+            } else if (Array.isArray(data)) {
+                this.allProducts = data;
+                this.pagination.setItems(data);
+                this.renderProductCards(data.slice(0, size));
+            } else {
+                this.allProducts = [];
+                this.renderProductCards([]);
+            }
         } catch (e) {
             console.error('[Catalog] Error al obtener productos:', e);
             this.allProducts = [];
-            this.applyFiltersAndRender();
+            this.renderProductCards([]);
         }
     }
 
@@ -181,7 +201,7 @@ class CatalogModule {
 
         if (filterPills) filterPills.innerHTML = mainRowHtml + moreRowHtml;
 
-        // Mobile drawer subcategory list (shows all subcategories clearly)
+        // Mobile drawer subcategory list
         if (mobileFilterPills) {
             let mobSubHtml = `
                 <button class="mobile-nav-item ${this.activeCategory === 'todos' ? 'active' : ''}" 
@@ -211,18 +231,18 @@ class CatalogModule {
         this.activeCategory = 'todos';
         this.renderDepartmentNav();
         this.renderSubcategoryPills();
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     filterSubCategory(sub) {
         this.activeCategory = sub || 'todos';
         this.renderSubcategoryPills();
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     setSearchQuery(q) {
         this.searchQuery = q || '';
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     togglePillsExpanded(e) {
@@ -362,8 +382,15 @@ class CatalogModule {
     }
 
     // Detail Modal
-    openProductDetails(id) {
-        const prod = this.allProducts.find(p => p.id === id);
+    async openProductDetails(id) {
+        let prod = this.allProducts.find(p => p.id === id);
+        try {
+            const fullProd = await api.get(`/api/products/${id}`);
+            if (fullProd && fullProd.id) {
+                prod = fullProd;
+            }
+        } catch (e) {}
+
         if (!prod) return;
 
         this.selectedDetailProduct = prod;

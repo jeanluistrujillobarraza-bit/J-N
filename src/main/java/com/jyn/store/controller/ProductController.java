@@ -35,13 +35,30 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Product>> getProducts(
+    public ResponseEntity<?> getProducts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String mainCategory,
-            @RequestParam(required = false) String query) {
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = size != null ? size : 16;
+            var paged = productService.getProductsPaged(pageNum, pageSize, category, mainCategory, query, type);
+            return ResponseEntity.ok()
+                    .cacheControl(org.springframework.http.CacheControl.maxAge(30, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
+                    .body(paged);
+        }
+
         List<Product> products = productService.searchProducts(category, mainCategory, query);
+        if (type != null && !type.trim().isEmpty() && !type.equalsIgnoreCase("todos")) {
+            String tLower = type.trim().toLowerCase();
+            products = products.stream().filter(p -> p.getType() != null && p.getType().equalsIgnoreCase(tLower)).toList();
+        }
         return ResponseEntity.ok()
-                .cacheControl(org.springframework.http.CacheControl.maxAge(60, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
+                .cacheControl(org.springframework.http.CacheControl.maxAge(30, java.util.concurrent.TimeUnit.SECONDS).cachePublic())
                 .body(products);
     }
 
@@ -122,9 +139,17 @@ public class ProductController {
     }
 
     @GetMapping("/deleted")
-    public ResponseEntity<?> getDeletedProducts(HttpSession session) {
+    public ResponseEntity<?> getDeletedProducts(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            HttpSession session) {
         if (isNotAdmin(session)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No autorizado"));
+        }
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = size != null ? size : 15;
+            return ResponseEntity.ok(productService.getDeletedProductsPaged(pageNum, pageSize));
         }
         return ResponseEntity.ok(productService.getDeletedProducts());
     }

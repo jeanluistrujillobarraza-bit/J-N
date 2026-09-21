@@ -194,31 +194,16 @@ class JNStoreApp {
 
     // Admin Navigation
     toggleAdminSection() {
-        const adminSection = document.getElementById('admin-section');
-        const storeSection = document.getElementById('store-section');
-        if (adminSection) {
-            if (adminSection.classList.contains('hidden')) {
-                this.openAdminSection();
-            } else {
-                this.closeAdminSection();
-            }
-        }
+        window.location.href = 'admin.html';
     }
 
     openAdminSection() {
-        const adminSection = document.getElementById('admin-section');
-        const storeSection = document.getElementById('store-section');
-        if (adminSection) adminSection.classList.remove('hidden');
-        if (storeSection) storeSection.classList.add('hidden');
-        this.setAdminTab(this.currentAdminTab);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.location.href = 'admin.html';
     }
 
     closeAdminSection() {
-        const adminSection = document.getElementById('admin-section');
-        const storeSection = document.getElementById('store-section');
-        if (adminSection) adminSection.classList.add('hidden');
-        if (storeSection) storeSection.classList.remove('hidden');
+        // No-op or return to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async setAdminTab(tab) {
