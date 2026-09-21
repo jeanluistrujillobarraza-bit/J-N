@@ -70,12 +70,14 @@ public class ProductService {
                 projection.put("deleted", 1);
                 projection.put("images", new org.bson.Document("$slice", 1));
 
-                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
+                List<org.bson.Document> docs = new ArrayList<>();
+                mongoTemplate.getCollection("products")
                         .find(query)
                         .projection(projection)
-                        .batchSize(50);
+                        .batchSize(500)
+                        .into(docs);
 
-                for (org.bson.Document doc : iterable) {
+                for (org.bson.Document doc : docs) {
                     Product p = mapDocToProduct(doc, false);
                     if (p != null) {
                         list.add(p);
@@ -244,12 +246,14 @@ public class ProductService {
                 projection.put("deleted", 1);
                 projection.put("images", new org.bson.Document("$slice", 1));
 
-                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
+                List<org.bson.Document> docs = new ArrayList<>();
+                mongoTemplate.getCollection("products")
                         .find(query)
                         .projection(projection)
-                        .batchSize(50);
+                        .batchSize(500)
+                        .into(docs);
 
-                for (org.bson.Document doc : iterable) {
+                for (org.bson.Document doc : docs) {
                     Product p = mapDocToProduct(doc, false);
                     if (p != null) {
                         list.add(p);
