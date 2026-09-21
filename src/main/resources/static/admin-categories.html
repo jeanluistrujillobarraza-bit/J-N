@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J&N - Gestión de Categorías</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Modular CSS System -->
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+
+    <!-- Admin Header Navigation -->
+    <header class="main-header">
+        <div class="container header-content">
+            <div class="brand" onclick="window.location.href='index.html'">
+                <div class="brand-text">
+                    <h1>J&amp;N</h1>
+                    <p style="color: var(--gold); font-weight: 600;">Panel de Administración</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <a href="index.html" class="btn btn-outline" style="text-decoration: none; font-size: 13px;">
+                    <i class="fas fa-store"></i> <span>Ver Tienda</span>
+                </a>
+                <button onclick="app.adminLogout()" class="admin-btn logout-btn" style="border-color: #fecaca; color: #dc2626;">
+                    <i class="fas fa-sign-out-alt"></i> <span>Cerrar Sesión</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin Workspace Section -->
+    <section class="admin-section" id="admin-section" style="padding-top: 30px; padding-bottom: 60px;">
+        <div class="container admin-container">
+            <!-- Sidebar -->
+            <div class="admin-sidebar">
+                <h4>Panel de Control</h4>
+                <a href="admin-dashboard.html" class="admin-tab-btn" id="tab-dashboard" style="text-decoration: none;">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </a>
+                <a href="admin-products.html" class="admin-tab-btn" id="tab-products" style="text-decoration: none;">
+                    <i class="fas fa-boxes"></i> Inventario
+                </a>
+                <a href="admin-categories.html" class="admin-tab-btn active" id="tab-categories" style="text-decoration: none;">
+                    <i class="fas fa-tags"></i> Categorías
+                </a>
+                <a href="admin-orders.html" class="admin-tab-btn" id="tab-orders" style="text-decoration: none;">
+                    <i class="fas fa-receipt"></i> Pedidos
+                </a>
+                <a href="admin-trash.html" class="admin-tab-btn" id="tab-trash" style="text-decoration: none;">
+                    <i class="fas fa-trash-restore"></i> Papelera
+                </a>
+                <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--border-color);">
+                <a href="index.html" class="admin-tab-btn" style="text-decoration: none; color: var(--text-secondary);">
+                    <i class="fas fa-arrow-left"></i> Volver a la Tienda
+                </a>
+                <button onclick="app.adminLogout()" class="admin-tab-btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="admin-content-area">
+                <div class="admin-tab-content" id="content-categories">
+                    <div class="admin-header-row">
+                        <h3>Gestión de Departamentos y Subcategorías</h3>
+                    </div>
+
+                    <div class="category-manager-grid">
+                        <!-- Main Categories Box -->
+                        <div class="category-card-box">
+                            <h4 style="margin-bottom: 12px; font-size: 15px;">1. Departamentos Principales</h4>
+                            <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                                <input type="text" class="form-control" id="new-main-category-name" placeholder="Ej: Maquillaje, Ropa, Perfumes...">
+                                <button class="btn btn-gold" onclick="app.addMainCategory()">Crear</button>
+                            </div>
+                            <ul class="category-list" id="admin-main-category-list">
+                                <!-- Dynamic list -->
+                            </ul>
+                        </div>
+
+                        <!-- Subcategories Box -->
+                        <div class="category-card-box">
+                            <h4 style="margin-bottom: 12px; font-size: 15px;">2. Subcategorías</h4>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                                <input type="text" class="form-control" id="new-subcategory-name" placeholder="Ej: BASES, RUBORES, VESTIDOS...">
+                                <select class="form-control" id="new-subcategory-parent">
+                                    <!-- Dynamic main categories options -->
+                                </select>
+                                <button class="btn btn-primary" onclick="app.addSubCategory()">Crear Subcategoría</button>
+                            </div>
+                            <ul class="category-list" id="admin-sub-category-list">
+                                <!-- Dynamic subcategories -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modular JS Architecture Scripts -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/api.js"></script>
+    <script src="js/auth/auth.js"></script>
+    <script src="js/admin/admin-categories.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await app.auth.checkSession();
+            if (!app.auth.isAdmin) {
+                Utils.showToast('Acceso restringido a administradores. Por favor inicia sesión.', 'warning');
+                setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+            } else {
+                await app.adminCategories.render();
+            }
+        });
+    </script>
+</body>
+</html>

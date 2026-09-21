@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J&N - Dashboard de Ventas</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Modular CSS System -->
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+
+    <!-- Admin Header Navigation -->
+    <header class="main-header">
+        <div class="container header-content">
+            <div class="brand" onclick="window.location.href='index.html'">
+                <div class="brand-text">
+                    <h1>J&amp;N</h1>
+                    <p style="color: var(--gold); font-weight: 600;">Panel de Administración</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <a href="index.html" class="btn btn-outline" style="text-decoration: none; font-size: 13px;">
+                    <i class="fas fa-store"></i> <span>Ver Tienda</span>
+                </a>
+                <button onclick="app.adminLogout()" class="admin-btn logout-btn" style="border-color: #fecaca; color: #dc2626;">
+                    <i class="fas fa-sign-out-alt"></i> <span>Cerrar Sesión</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin Workspace Section -->
+    <section class="admin-section" id="admin-section" style="padding-top: 30px; padding-bottom: 60px;">
+        <div class="container admin-container">
+            <!-- Sidebar -->
+            <div class="admin-sidebar">
+                <h4>Panel de Control</h4>
+                <a href="admin-dashboard.html" class="admin-tab-btn active" id="tab-dashboard" style="text-decoration: none;">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </a>
+                <a href="admin-products.html" class="admin-tab-btn" id="tab-products" style="text-decoration: none;">
+                    <i class="fas fa-boxes"></i> Inventario
+                </a>
+                <a href="admin-categories.html" class="admin-tab-btn" id="tab-categories" style="text-decoration: none;">
+                    <i class="fas fa-tags"></i> Categorías
+                </a>
+                <a href="admin-orders.html" class="admin-tab-btn" id="tab-orders" style="text-decoration: none;">
+                    <i class="fas fa-receipt"></i> Pedidos
+                </a>
+                <a href="admin-trash.html" class="admin-tab-btn" id="tab-trash" style="text-decoration: none;">
+                    <i class="fas fa-trash-restore"></i> Papelera
+                </a>
+                <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--border-color);">
+                <a href="index.html" class="admin-tab-btn" style="text-decoration: none; color: var(--text-secondary);">
+                    <i class="fas fa-arrow-left"></i> Volver a la Tienda
+                </a>
+                <button onclick="app.adminLogout()" class="admin-tab-btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="admin-content-area">
+                <div class="admin-tab-content" id="content-dashboard">
+                    <div class="admin-header-row">
+                        <h3>Resumen General de Ventas</h3>
+                    </div>
+                    
+                    <div class="stats-grid" style="margin-bottom: 30px;">
+                        <div class="stat-card" style="border-left: 4px solid #10b981;">
+                            <div class="stat-icon" style="background-color: rgba(16,185,129,0.1); color: #10b981;"><i class="fas fa-calendar-day"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-today">$0</h4>
+                                <p>Ventas de Hoy</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid var(--gold);">
+                            <div class="stat-icon" style="background-color: rgba(212,175,55,0.15); color: var(--gold);"><i class="fas fa-calendar-week"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-week">$0</h4>
+                                <p>Última Semana</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid #3b82f6;">
+                            <div class="stat-icon" style="background-color: rgba(59,130,246,0.1); color: #3b82f6;"><i class="fas fa-calendar-alt"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-month">$0</h4>
+                                <p>Ventas del Mes</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left: 4px solid #7209b7;">
+                            <div class="stat-icon" style="background-color: rgba(114,9,183,0.1); color: #7209b7;"><i class="fas fa-chart-line"></i></div>
+                            <div class="stat-info">
+                                <h4 id="stat-sales-total">$0</h4>
+                                <p>Histórico Total</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-bottom: 15px; font-size: 16px; font-weight: 700;">Estado de Inventario por Departamento</h4>
+                    <div class="stats-grid" id="inventory-stats-grid">
+                        <!-- Dynamic department stats -->
+                    </div>
+
+                    <h4 style="margin-top: 30px; margin-bottom: 15px; font-size: 16px; font-weight: 700;">Alertas Críticas de Inventario</h4>
+                    <div class="alerts-list" id="alerts-list">
+                        <!-- Dynamic stock alerts -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modular JS Architecture Scripts -->
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/api.js"></script>
+    <script src="js/auth/auth.js"></script>
+    <script src="js/admin/admin-dashboard.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await app.auth.checkSession();
+            if (!app.auth.isAdmin) {
+                Utils.showToast('Acceso restringido a administradores. Por favor inicia sesión.', 'warning');
+                setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+            } else {
+                await app.adminDashboard.render();
+            }
+        });
+    </script>
+</body>
+</html>
