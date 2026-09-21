@@ -104,11 +104,13 @@ class JNStoreApp {
     openRegisterTab() { this.auth.openAuthModal('register'); }
     closeLoginModal() { this.auth.closeAuthModal(); }
     setAuthTab(tab) { this.auth.setAuthTab(tab); }
+    togglePasswordVisibility(inputId, btnEl) { this.auth.togglePasswordVisibility(inputId, btnEl); }
     submitLogin(e) {
         if (e) e.preventDefault();
         const user = document.getElementById('login-username')?.value.trim();
         const pass = document.getElementById('login-password')?.value;
-        this.auth.login(user, pass);
+        const remember = document.getElementById('login-remember-me')?.checked ?? true;
+        this.auth.login(user, pass, remember);
     }
     submitRegister(e) {
         if (e) e.preventDefault();

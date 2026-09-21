@@ -8,6 +8,7 @@ class AuthModule {
         this.isAdmin = false;
         this.isClient = false;
         this.currentUser = null;
+        this.storageKey = 'jn_auth_remembered_v1';
     }
 
     async checkSession() {
@@ -23,27 +24,83 @@ class AuthModule {
                     lastName: data.lastName,
                     phone: data.phone
                 };
-            } else {
-                this.isAdmin = false;
-                this.isClient = false;
-                this.currentUser = null;
+                this.updateAuthUI();
+                return;
             }
         } catch (e) {
-            this.isAdmin = false;
-            this.isClient = false;
-            this.currentUser = null;
+            console.warn('[Auth] Error verificando sesión en servidor:', e);
         }
+
+        // Si la sesión del servidor no está activa, intentar auto-login si el usuario eligió "Recordarme"
+        const saved = this.getRememberedCredentials();
+        if (saved && saved.username && saved.password) {
+            const autoLoginOk = await this.silentAutoLogin(saved.username, saved.password);
+            if (autoLoginOk) return;
+        }
+
+        this.isAdmin = false;
+        this.isClient = false;
+        this.currentUser = null;
         this.updateAuthUI();
     }
 
-    async login(username, password) {
+    getRememberedCredentials() {
+        try {
+            const raw = localStorage.getItem(this.storageKey);
+            if (raw) {
+                return JSON.parse(raw);
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    saveRememberedCredentials(username, password) {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify({ username, password }));
+        } catch (e) {}
+    }
+
+    clearRememberedCredentials() {
+        try {
+            localStorage.removeItem(this.storageKey);
+        } catch (e) {}
+    }
+
+    async silentAutoLogin(username, password) {
+        try {
+            const res = await api.post('/api/auth/login', { username: username.trim(), password: password });
+            if (res && res.role) {
+                this.isAdmin = res.role === 'ADMIN';
+                this.isClient = res.role === 'CLIENT';
+                this.currentUser = {
+                    username: res.username,
+                    role: res.role,
+                    firstName: res.firstName,
+                    lastName: res.lastName,
+                    phone: res.phone
+                };
+                this.updateAuthUI();
+                console.log(`>>> [Auth] Sesión recordada restaurada para: ${res.username}`);
+                return true;
+            }
+        } catch (err) {
+            console.warn('[Auth] No se pudo restaurar sesión guardada:', err.message);
+            // Si la contraseña cambió o falló, limpiar almacenamiento
+            this.clearRememberedCredentials();
+        }
+        return false;
+    }
+
+    async login(username, password, remember = true) {
         if (!username || !password) {
             Utils.showToast('Por favor ingresa usuario y contraseña.', 'warning');
             return false;
         }
 
+        const cleanUsername = username.trim();
+
         try {
-            const res = await api.post('/api/auth/login', { username, password });
+            const res = await api.post('/api/auth/login', { username: cleanUsername, password: password.trim() });
             this.isAdmin = res.role === 'ADMIN';
             this.isClient = res.role === 'CLIENT';
             this.currentUser = {
@@ -53,6 +110,12 @@ class AuthModule {
                 lastName: res.lastName,
                 phone: res.phone
             };
+
+            if (remember) {
+                this.saveRememberedCredentials(cleanUsername, password.trim());
+            } else {
+                this.clearRememberedCredentials();
+            }
 
             Utils.showToast(`¡Bienvenido de nuevo, ${res.firstName || res.username}!`, 'success');
             this.closeAuthModal();
@@ -77,9 +140,15 @@ class AuthModule {
         }
 
         try {
-            await api.post('/api/auth/register', clientData);
+            await api.post('/api/auth/register', {
+                ...clientData,
+                username: clientData.username.trim()
+            });
             Utils.showToast('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success');
             this.setAuthTab('login');
+            
+            const userInp = document.getElementById('login-username');
+            if (userInp) userInp.value = clientData.username.trim();
             return true;
         } catch (err) {
             Utils.showToast(err.message || 'Error al registrar usuario.', 'danger');
@@ -88,6 +157,7 @@ class AuthModule {
     }
 
     async logout() {
+        this.clearRememberedCredentials();
         try {
             await api.post('/api/auth/logout');
         } catch (e) {}
@@ -98,6 +168,23 @@ class AuthModule {
         this.updateAuthUI();
         this.store.closeAdminSection();
         Utils.showToast('Sesión cerrada correctamente.', 'info');
+    }
+
+    togglePasswordVisibility(inputId, btnEl) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btnEl ? btnEl.querySelector('i') : null;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.className = 'fas fa-eye-slash';
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.className = 'fas fa-eye';
+            }
+        }
     }
 
     updateAuthUI() {
@@ -135,6 +222,18 @@ class AuthModule {
         if (modal) {
             modal.classList.remove('hidden');
             this.setAuthTab(tab);
+
+            // Pre-fill username and remember checkbox if saved
+            const saved = this.getRememberedCredentials();
+            const userInp = document.getElementById('login-username');
+            const passInp = document.getElementById('login-password');
+            const remChk = document.getElementById('login-remember-me');
+            
+            if (saved && saved.username) {
+                if (userInp && !userInp.value) userInp.value = saved.username;
+                if (passInp && !passInp.value && saved.password) passInp.value = saved.password;
+                if (remChk) remChk.checked = true;
+            }
         }
     }
 
@@ -164,3 +263,4 @@ class AuthModule {
 }
 
 window.AuthModule = AuthModule;
+

@@ -78,9 +78,9 @@ public class UserService {
 
         String cleanUsername = username.trim();
 
-        // 1. Verificación instantánea para el Administrador
+        // 1. Verificación instantánea para el Administrador (Flexible mayúsculas/minúsculas en usuario)
         if (adminUsername.equalsIgnoreCase(cleanUsername)) {
-            if (adminPassword.equals(password)) {
+            if (adminPassword.equals(password.trim())) {
                 User admin = new User();
                 admin.setUsername(adminUsername);
                 admin.setFirstName("Jayner");
