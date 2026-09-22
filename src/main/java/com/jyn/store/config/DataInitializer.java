@@ -131,20 +131,39 @@ public class DataInitializer {
 
     private void seedProducts() {
         try {
-            if (productRepository.count() == 0) {
-                System.out.println(">>> [Auto-Seed] Base de datos sin productos. Cargando catálogo inicial...");
-                List<Product> productsToSave = loadProductsFromSeedJson();
+            List<Product> seedList = loadProductsFromSeedJson();
+            if (seedList == null || seedList.isEmpty()) {
+                seedList = generateDefaultProductsFallback();
+            }
 
-                if (productsToSave == null || productsToSave.isEmpty()) {
-                    productsToSave = generateDefaultProductsFallback();
+            if (seedList != null && !seedList.isEmpty()) {
+                // Read all existing product names in DB (active or deleted)
+                List<Product> existingProducts = productRepository.findAll();
+                java.util.Set<String> existingNames = new java.util.HashSet<>();
+                for (Product p : existingProducts) {
+                    if (p.getName() != null) {
+                        existingNames.add(p.getName().trim().toLowerCase());
+                    }
                 }
 
-                if (!productsToSave.isEmpty()) {
-                    productRepository.saveAll(productsToSave);
-                    System.out.println(">>> [Auto-Seed] " + productsToSave.size() + " Productos iniciales insertados con éxito en la base de datos.");
+                List<Product> missingProducts = new ArrayList<>();
+                for (Product seedProd : seedList) {
+                    if (seedProd.getName() != null) {
+                        String cleanName = seedProd.getName().trim().toLowerCase();
+                        if (!existingNames.contains(cleanName)) {
+                            missingProducts.add(seedProd);
+                            existingNames.add(cleanName); // Avoid duplicates in seed
+                        }
+                    }
                 }
-            } else {
-                System.out.println(">>> [Auto-Seed] Base de datos ya contiene " + productRepository.count() + " productos.");
+
+                if (!missingProducts.isEmpty()) {
+                    System.out.println(">>> [Auto-Seed] Se detectaron " + missingProducts.size() + " productos faltantes en la Base de Datos. Insertando...");
+                    productRepository.saveAll(missingProducts);
+                    System.out.println(">>> [Auto-Seed] " + missingProducts.size() + " Productos sincronizados e insertados exitosamente.");
+                } else {
+                    System.out.println(">>> [Auto-Seed] Catálogo completo. Todos los " + seedList.size() + " productos están presentes en la Base de Datos.");
+                }
             }
         } catch (Exception e) {
             System.err.println(">>> [Auto-Seed] Error al inicializar productos: " + e.getMessage());
