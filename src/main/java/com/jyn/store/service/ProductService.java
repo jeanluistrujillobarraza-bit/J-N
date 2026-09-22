@@ -62,7 +62,8 @@ public class ProductService {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
                 com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
-                        .find(query);
+                        .find(query)
+                        .batchSize(1000);
 
                 try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
                     while (cursor.hasNext()) {
