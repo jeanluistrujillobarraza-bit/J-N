@@ -58,27 +58,25 @@ public class ProductService {
 
         List<Product> list = new ArrayList<>();
 
-        // 1. Fast direct streaming via MongoTemplate with lightweight projection
-        if (mongoTemplate != null) {
+        // 1. Primary: Use ProductRepository findActiveProducts or findAll
+        try {
+            List<Product> repoList = productRepository.findAll();
+            if (repoList != null && !repoList.isEmpty()) {
+                for (Product p : repoList) {
+                    if (p != null && !p.isDeleted()) {
+                        list.add(p);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
+        }
+
+        // 2. Fallback via MongoTemplate if repo was empty
+        if (list.isEmpty() && mongoTemplate != null) {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
-                org.bson.Document projection = new org.bson.Document();
-                projection.put("name", 1);
-                projection.put("description", 1);
-                projection.put("price", 1);
-                projection.put("category", 1);
-                projection.put("type", 1);
-                projection.put("generalStock", 1);
-                projection.put("stock", 1);
-                projection.put("variations", 1);
-                projection.put("deleted", 1);
-                projection.put("images", new org.bson.Document("$slice", 1));
-
-                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
-                        .find(query)
-                        .projection(projection)
-                        .batchSize(100);
-
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products").find(query);
                 try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
                     while (cursor.hasNext()) {
                         try {
@@ -87,45 +85,11 @@ public class ProductService {
                             if (p != null) {
                                 list.add(p);
                             }
-                        } catch (Exception docEx) {
-                            System.err.println("Aviso leyendo documento individual: " + docEx.getMessage());
-                        }
+                        } catch (Exception ignored) {}
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Aviso leyendo productos via MongoTemplate: " + e.getMessage());
-            }
-        }
-
-        // 2. Fallback to repository solo si mongoTemplate no devolvió nada
-        if (list.isEmpty() && mongoTemplate == null) {
-            try {
-                List<Product> repoList = productRepository.findActiveProducts();
-                if (repoList != null) {
-                    for (Product p : repoList) {
-                        if (p != null && !p.isDeleted()) {
-                            list.add(p);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
-            }
-        }
-
-        // 3. Fallback to findAll
-        if (list.isEmpty()) {
-            try {
-                List<Product> allRepo = productRepository.findAll();
-                if (allRepo != null) {
-                    for (Product p : allRepo) {
-                        if (p != null && !p.isDeleted()) {
-                            list.add(p);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("Aviso leyendo productos via findAll: " + e.getMessage());
             }
         }
 
