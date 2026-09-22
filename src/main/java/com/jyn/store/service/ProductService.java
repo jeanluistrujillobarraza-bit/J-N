@@ -58,25 +58,26 @@ public class ProductService {
 
         List<Product> list = new ArrayList<>();
 
-        // 1. Primary: Use ProductRepository findActiveProducts or findAll
-        try {
-            List<Product> repoList = productRepository.findAll();
-            if (repoList != null && !repoList.isEmpty()) {
-                for (Product p : repoList) {
-                    if (p != null && !p.isDeleted()) {
-                        list.add(p);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
-        }
-
-        // 2. Fallback via MongoTemplate if repo was empty
-        if (list.isEmpty() && mongoTemplate != null) {
+        // 1. Direct High-Performance Streaming via MongoTemplate with lightweight projection
+        if (mongoTemplate != null) {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
-                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products").find(query);
+                org.bson.Document projection = new org.bson.Document();
+                projection.put("name", 1);
+                projection.put("description", 1);
+                projection.put("price", 1);
+                projection.put("category", 1);
+                projection.put("type", 1);
+                projection.put("generalStock", 1);
+                projection.put("stock", 1);
+                projection.put("variations", 1);
+                projection.put("deleted", 1);
+                projection.put("images", 1);
+
+                com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
+                        .find(query)
+                        .projection(projection);
+
                 try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
                     while (cursor.hasNext()) {
                         try {
@@ -90,6 +91,22 @@ public class ProductService {
                 }
             } catch (Exception e) {
                 System.err.println("Aviso leyendo productos via MongoTemplate: " + e.getMessage());
+            }
+        }
+
+        // 2. Fallback to repository if mongoTemplate is not configured
+        if (list.isEmpty()) {
+            try {
+                List<Product> repoList = productRepository.findAll();
+                if (repoList != null) {
+                    for (Product p : repoList) {
+                        if (p != null && !p.isDeleted()) {
+                            list.add(p);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
             }
         }
 
