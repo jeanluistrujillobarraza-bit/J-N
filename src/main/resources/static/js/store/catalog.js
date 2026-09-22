@@ -23,8 +23,8 @@ class CatalogModule {
         // Server-Side Real Pagination Component for Catalog
         this.pagination = new Pagination({
             containerId: 'catalog-pagination-container',
-            pageSize: 16,
-            pageSizeOptions: [12, 16, 24, 48],
+            pageSize: 15,
+            pageSizeOptions: [10, 15, 25, 50],
             isServerSide: true,
             onServerPageChange: (page, size) => this.fetchProducts(page, size)
         });
