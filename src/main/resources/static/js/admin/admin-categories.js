@@ -5,11 +5,28 @@
 class AdminCategoriesModule {
     constructor(store) {
         this.store = store;
+        this.mainCategories = [];
+        this.categories = [];
     }
 
     async render() {
-        await this.store.catalog.fetchMainCategories();
-        await this.store.catalog.fetchCategories();
+        try {
+            const [mainCats, subs] = await Promise.all([
+                api.get('/api/main-categories').catch(() => []),
+                api.get('/api/categories').catch(() => [])
+            ]);
+            this.mainCategories = Array.isArray(mainCats) ? mainCats : [];
+            this.categories = Array.isArray(subs) ? subs : [];
+
+            // Also keep catalog in sync if present
+            if (this.store && this.store.catalog) {
+                this.store.catalog.mainCategories = this.mainCategories;
+                this.store.catalog.categories = this.categories;
+            }
+        } catch (e) {
+            console.error('[AdminCategories] Error fetching data:', e);
+        }
+
         this.renderMainCategoriesList();
         this.renderSubcategoriesList();
         this.populateParentCategorySelect();
@@ -19,7 +36,7 @@ class AdminCategoriesModule {
         const list = document.getElementById('admin-main-category-list');
         if (!list) return;
 
-        const mainCats = this.store.catalog.mainCategories || [];
+        const mainCats = this.mainCategories || [];
         if (mainCats.length === 0) {
             list.innerHTML = `<li style="color:var(--text-muted);">No hay departamentos creados.</li>`;
             return;
@@ -39,7 +56,7 @@ class AdminCategoriesModule {
         const list = document.getElementById('admin-sub-category-list');
         if (!list) return;
 
-        const subs = this.store.catalog.categories || [];
+        const subs = this.categories || [];
         if (subs.length === 0) {
             list.innerHTML = `<li style="color:var(--text-muted);">No hay subcategorías creadas.</li>`;
             return;
@@ -62,7 +79,11 @@ class AdminCategoriesModule {
         const select = document.getElementById('new-subcategory-parent');
         if (!select) return;
 
-        const mainCats = this.store.catalog.mainCategories || [];
+        const mainCats = this.mainCategories || [];
+        if (mainCats.length === 0) {
+            select.innerHTML = `<option value="Maquillaje">Maquillaje (Por defecto)</option>`;
+            return;
+        }
         select.innerHTML = mainCats.map(m => `
             <option value="${Utils.escapeHtml(m.name)}">${Utils.escapeHtml(m.name)}</option>
         `).join('');

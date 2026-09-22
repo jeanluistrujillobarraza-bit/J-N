@@ -21,8 +21,25 @@ class AdminProductsModule {
     }
 
     async render() {
-        this.populateCategorySelects();
+        await this.populateCategorySelects();
         await this.fetchProducts(0, this.pagination.pageSize);
+    }
+
+    async populateCategorySelects() {
+        const catSelect = document.getElementById('prod-category');
+        if (!catSelect) return;
+
+        let categories = [];
+        try {
+            categories = await api.get('/api/categories') || [];
+        } catch (e) {
+            categories = [];
+        }
+
+        catSelect.innerHTML = `
+            <option value="">Selecciona una subcategoría...</option>
+            ${categories.map(c => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)} (${Utils.escapeHtml(c.parentCategory || 'General')})</option>`).join('')}
+        `;
     }
 
     async fetchProducts(page = 0, size = this.pagination.pageSize) {
@@ -122,16 +139,6 @@ class AdminProductsModule {
         }).join('');
     }
 
-    populateCategorySelects() {
-        const catSelect = document.getElementById('prod-category');
-        if (!catSelect) return;
-
-        const categories = this.store.catalog.categories || [];
-        catSelect.innerHTML = `
-            <option value="">Selecciona una subcategoría...</option>
-            ${categories.map(c => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)} (${Utils.escapeHtml(c.parentCategory || 'General')})</option>`).join('')}
-        `;
-    }
 
     async openProductModal(id = null) {
         const modal = document.getElementById('product-modal');
