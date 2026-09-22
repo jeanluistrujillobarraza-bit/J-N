@@ -442,8 +442,17 @@ public class ProductService {
             List<Product> filtered = new ArrayList<>();
 
             for (Product p : allActive) {
-                boolean matchesMain = (p.getType() != null && p.getType().equalsIgnoreCase(main))
-                        || (p.getCategory() != null && matchingCategoryNames.stream().anyMatch(cn -> cn.equalsIgnoreCase(p.getCategory())));
+                boolean matchesMain = false;
+                if (p.getType() != null && p.getType().equalsIgnoreCase(main)) {
+                    matchesMain = true;
+                } else if (p.getCategory() != null) {
+                    String pCat = p.getCategory().trim();
+                    if (pCat.equalsIgnoreCase(main)) {
+                        matchesMain = true;
+                    } else if (matchingCategoryNames.stream().anyMatch(cn -> cn.equalsIgnoreCase(pCat))) {
+                        matchesMain = true;
+                    }
+                }
 
                 if (matchesMain) {
                     if (hasQuery) {
