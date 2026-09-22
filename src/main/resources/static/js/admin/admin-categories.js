@@ -10,26 +10,25 @@ class AdminCategoriesModule {
     }
 
     async render() {
-        try {
-            const [mainCats, subs] = await Promise.all([
-                api.get('/api/main-categories').catch(() => []),
-                api.get('/api/categories').catch(() => [])
-            ]);
-            this.mainCategories = Array.isArray(mainCats) ? mainCats : [];
-            this.categories = Array.isArray(subs) ? subs : [];
-
-            // Also keep catalog in sync if present
-            if (this.store && this.store.catalog) {
-                this.store.catalog.mainCategories = this.mainCategories;
-                this.store.catalog.categories = this.categories;
-            }
-        } catch (e) {
-            console.error('[AdminCategories] Error fetching data:', e);
-        }
-
+        await this.loadData();
         this.renderMainCategoriesList();
         this.renderSubcategoriesList();
         this.populateParentCategorySelect();
+    }
+
+    async loadData() {
+        try {
+            const [mainCats, subs] = await Promise.all([
+                api.get('/api/main-categories'),
+                api.get('/api/categories')
+            ]);
+            this.mainCategories = Array.isArray(mainCats) ? mainCats : [];
+            this.categories = Array.isArray(subs) ? subs : [];
+        } catch (err) {
+            console.error('[AdminCategories] Error cargando categorías:', err);
+            this.mainCategories = this.mainCategories || [];
+            this.categories = this.categories || [];
+        }
     }
 
     renderMainCategoriesList() {
@@ -80,10 +79,6 @@ class AdminCategoriesModule {
         if (!select) return;
 
         const mainCats = this.mainCategories || [];
-        if (mainCats.length === 0) {
-            select.innerHTML = `<option value="Maquillaje">Maquillaje (Por defecto)</option>`;
-            return;
-        }
         select.innerHTML = mainCats.map(m => `
             <option value="${Utils.escapeHtml(m.name)}">${Utils.escapeHtml(m.name)}</option>
         `).join('');

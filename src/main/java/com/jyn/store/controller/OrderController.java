@@ -392,10 +392,12 @@ public class OrderController {
             List<Product> allProds = productService.getAllProducts();
             long totalProducts = allProds.size();
             long makeupCount = allProds.stream().filter(p -> 
-                p.getType() != null && p.getType().trim().equalsIgnoreCase("maquillaje")
+                (p.getType() != null && p.getType().toLowerCase().contains("maquillaje")) ||
+                (p.getCategory() != null && p.getCategory().toLowerCase().contains("maquillaje"))
             ).count();
             long clothingCount = allProds.stream().filter(p -> 
-                p.getType() != null && p.getType().trim().equalsIgnoreCase("ropa")
+                (p.getType() != null && p.getType().toLowerCase().contains("ropa")) ||
+                (p.getCategory() != null && p.getCategory().toLowerCase().contains("ropa"))
             ).count();
             long criticalStockCount = productService.getStockAlerts().size();
 

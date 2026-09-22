@@ -58,12 +58,26 @@ public class ProductService {
 
         List<Product> list = new ArrayList<>();
 
+        // 1. Fast direct streaming via MongoTemplate with lightweight projection
         if (mongoTemplate != null) {
             try {
                 org.bson.Document query = new org.bson.Document("deleted", new org.bson.Document("$ne", true));
+                org.bson.Document projection = new org.bson.Document();
+                projection.put("name", 1);
+                projection.put("description", 1);
+                projection.put("price", 1);
+                projection.put("category", 1);
+                projection.put("type", 1);
+                projection.put("generalStock", 1);
+                projection.put("stock", 1);
+                projection.put("variations", 1);
+                projection.put("deleted", 1);
+                projection.put("images", new org.bson.Document("$slice", 1));
+
                 com.mongodb.client.FindIterable<org.bson.Document> iterable = mongoTemplate.getCollection("products")
                         .find(query)
-                        .batchSize(1000);
+                        .projection(projection)
+                        .batchSize(100);
 
                 try (com.mongodb.client.MongoCursor<org.bson.Document> cursor = iterable.iterator()) {
                     while (cursor.hasNext()) {
@@ -74,7 +88,7 @@ public class ProductService {
                                 list.add(p);
                             }
                         } catch (Exception docEx) {
-                            System.err.println("Aviso leyendo doc: " + docEx.getMessage());
+                            System.err.println("Aviso leyendo documento individual: " + docEx.getMessage());
                         }
                     }
                 }
@@ -83,7 +97,23 @@ public class ProductService {
             }
         }
 
-        // Fallback: ProductRepository
+        // 2. Fallback to repository solo si mongoTemplate no devolvió nada
+        if (list.isEmpty() && mongoTemplate == null) {
+            try {
+                List<Product> repoList = productRepository.findActiveProducts();
+                if (repoList != null) {
+                    for (Product p : repoList) {
+                        if (p != null && !p.isDeleted()) {
+                            list.add(p);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Aviso leyendo productos via ProductRepository: " + e.getMessage());
+            }
+        }
+
+        // 3. Fallback to findAll
         if (list.isEmpty()) {
             try {
                 List<Product> allRepo = productRepository.findAll();
@@ -130,8 +160,14 @@ public class ProductService {
         
         String cat = getSafeString(doc, "category");
         String type = getSafeString(doc, "type");
-        p.setCategory(cat != null ? cat.trim() : null);
-        p.setType(type != null ? type.trim() : null);
+        if (type == null || type.trim().isEmpty()) {
+            type = "maquillaje";
+        }
+        if (cat == null || cat.trim().isEmpty()) {
+            cat = "General";
+        }
+        p.setCategory(cat);
+        p.setType(type.trim().toLowerCase());
         
         Object stockObj = doc.get("generalStock");
         if (stockObj == null) {
@@ -361,58 +397,118 @@ public class ProductService {
         boolean hasMainCategory = mainCategory != null && !mainCategory.trim().isEmpty() && !mainCategory.equalsIgnoreCase("todos");
         boolean hasQuery = query != null && !query.trim().isEmpty();
 
-        List<Product> result = new ArrayList<>();
-
-        for (Product p : allActive) {
-            // 1. Department filter (priority: product.type)
-            if (hasMainCategory) {
-                String main = mainCategory.trim();
-                boolean matchesMain = p.getType() != null && p.getType().trim().equalsIgnoreCase(main);
-                if (!matchesMain) {
-                    continue; // Does not belong to this department
+        // 1. Specific subcategory filter
+        if (hasCategory) {
+            String cat = category.trim().toLowerCase();
+            List<Product> filtered = new ArrayList<>();
+            for (Product p : allActive) {
+                boolean catMatches = (p.getCategory() != null && p.getCategory().equalsIgnoreCase(cat))
+                        || (p.getType() != null && p.getType().equalsIgnoreCase(cat));
+                if (catMatches) {
+                    if (hasQuery) {
+                        String q = query.trim().toLowerCase();
+                        boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                        boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                        if (nameMatch || descMatch) {
+                            filtered.add(p);
+                        }
+                    } else {
+                        filtered.add(p);
+                    }
                 }
             }
-
-            // 2. Subcategory filter (explicit selection only)
-            if (hasCategory) {
-                String cat = category.trim();
-                boolean matchesCat = p.getCategory() != null && p.getCategory().trim().equalsIgnoreCase(cat);
-                if (!matchesCat) {
-                    continue; // Does not match selected subcategory
-                }
-            }
-
-            // 3. Search text query (name or description)
-            if (hasQuery) {
-                String q = query.trim().toLowerCase();
-                boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
-                boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
-                if (!nameMatch && !descMatch) {
-                    continue;
-                }
-            }
-
-            result.add(p);
+            return filtered;
         }
 
-        return result;
+        // 2. Main category (department) filter
+        if (hasMainCategory) {
+            String main = mainCategory.trim();
+            List<Category> allCategories = new ArrayList<>();
+            if (categoryRepository != null) {
+                try {
+                    allCategories = categoryRepository.findAll();
+                } catch (Exception e) {
+                    System.err.println("Aviso obteniendo categorias: " + e.getMessage());
+                }
+            }
+            List<String> matchingCategoryNames = new ArrayList<>();
+            for (Category c : allCategories) {
+                if (main.equalsIgnoreCase(c.getParentCategory()) || main.equalsIgnoreCase(c.getName())) {
+                    matchingCategoryNames.add(c.getName());
+                }
+            }
+            matchingCategoryNames.add(main);
+
+            List<Product> filtered = new ArrayList<>();
+
+            for (Product p : allActive) {
+                boolean matchesMain = false;
+                if (p.getType() != null && p.getType().equalsIgnoreCase(main)) {
+                    matchesMain = true;
+                } else if (p.getCategory() != null) {
+                    String pCat = p.getCategory().trim();
+                    if (pCat.equalsIgnoreCase(main)) {
+                        matchesMain = true;
+                    } else if (matchingCategoryNames.stream().anyMatch(cn -> cn.equalsIgnoreCase(pCat))) {
+                        matchesMain = true;
+                    }
+                }
+
+                if (matchesMain) {
+                    if (hasQuery) {
+                        String q = query.trim().toLowerCase();
+                        boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                        boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                        if (nameMatch || descMatch) {
+                            filtered.add(p);
+                        }
+                    } else {
+                        filtered.add(p);
+                    }
+                }
+            }
+            return filtered;
+        }
+
+        // 3. Global search query
+        if (hasQuery) {
+            String q = query.trim().toLowerCase();
+            List<Product> filtered = new ArrayList<>();
+            for (Product p : allActive) {
+                boolean nameMatch = p.getName() != null && p.getName().toLowerCase().contains(q);
+                boolean descMatch = p.getDescription() != null && p.getDescription().toLowerCase().contains(q);
+                boolean catMatch = p.getCategory() != null && p.getCategory().toLowerCase().contains(q);
+                boolean typeMatch = p.getType() != null && p.getType().toLowerCase().contains(q);
+                if (nameMatch || descMatch || catMatch || typeMatch) {
+                    filtered.add(p);
+                }
+            }
+            return filtered;
+        }
+
+        // 4. Default: all active products
+        return allActive;
     }
 
     public com.jyn.store.dto.PageResponse<Product> getProductsPaged(
             int page, int size, String category, String mainCategory, String query, String type) {
         
-        // If type is passed, treat as mainCategory if not already set
-        String effectiveMain = mainCategory;
-        if ((effectiveMain == null || effectiveMain.equalsIgnoreCase("todos") || effectiveMain.trim().isEmpty())
-                && (type != null && !type.equalsIgnoreCase("todos") && !type.trim().isEmpty())) {
-            effectiveMain = type;
+        List<Product> filtered = searchProducts(category, mainCategory, query);
+        
+        if (type != null && !type.trim().isEmpty() && !type.equalsIgnoreCase("todos")) {
+            String tLower = type.trim().toLowerCase();
+            List<Product> typeFiltered = new ArrayList<>();
+            for (Product p : filtered) {
+                if (p.getType() != null && p.getType().equalsIgnoreCase(tLower)) {
+                    typeFiltered.add(p);
+                }
+            }
+            filtered = typeFiltered;
         }
-
-        List<Product> filtered = searchProducts(category, effectiveMain, query);
 
         long totalElements = filtered.size();
         int safePage = Math.max(0, page);
-        int safeSize = size > 0 ? size : 15;
+        int safeSize = size > 0 ? size : 16;
         
         int fromIndex = safePage * safeSize;
         List<Product> pageContent;

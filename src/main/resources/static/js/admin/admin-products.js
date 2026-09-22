@@ -9,6 +9,7 @@ class AdminProductsModule {
         this.selectedTypeFilter = 'todos';
         this.variationsList = [];
         this.products = [];
+        this.categories = [];
 
         // Real Server-Side Pagination Component for Admin Products Table
         this.pagination = new Pagination({
@@ -21,25 +22,18 @@ class AdminProductsModule {
     }
 
     async render() {
-        await this.populateCategorySelects();
+        await this.fetchCategories();
+        this.populateCategorySelects();
         await this.fetchProducts(0, this.pagination.pageSize);
     }
 
-    async populateCategorySelects() {
-        const catSelect = document.getElementById('prod-category');
-        if (!catSelect) return;
-
-        let categories = [];
+    async fetchCategories() {
         try {
-            categories = await api.get('/api/categories') || [];
+            const data = await api.get('/api/categories');
+            this.categories = Array.isArray(data) ? data : [];
         } catch (e) {
-            categories = [];
+            this.categories = [];
         }
-
-        catSelect.innerHTML = `
-            <option value="">Selecciona una subcategoría...</option>
-            ${categories.map(c => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)} (${Utils.escapeHtml(c.parentCategory || 'General')})</option>`).join('')}
-        `;
     }
 
     async fetchProducts(page = 0, size = this.pagination.pageSize) {
@@ -139,6 +133,16 @@ class AdminProductsModule {
         }).join('');
     }
 
+    populateCategorySelects() {
+        const catSelect = document.getElementById('prod-category');
+        if (!catSelect) return;
+
+        const categories = this.categories || [];
+        catSelect.innerHTML = `
+            <option value="">Selecciona una subcategoría...</option>
+            ${categories.map(c => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)} (${Utils.escapeHtml(c.parentCategory || 'General')})</option>`).join('')}
+        `;
+    }
 
     async openProductModal(id = null) {
         const modal = document.getElementById('product-modal');
