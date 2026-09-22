@@ -24,5 +24,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(absoluteUploadPath, "file:uploads/", "file:/app/uploads/")
                 .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic());
+
+        // Cache static frontend resources (css, js, icons, fonts) for 7 days
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/")
+                .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic());
     }
 }
