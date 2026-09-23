@@ -56,7 +56,7 @@ public class OrderService {
         order.setTotal(total);
         order.setStatus("PENDIENTE");
         order.setDeleted(false);
-        order.setCreatedAt(LocalDateTime.now());
+        order.setCreatedAt(LocalDateTime.now(java.time.ZoneId.of("America/Bogota")));
 
         return orderRepository.save(order);
     }

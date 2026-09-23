@@ -263,6 +263,10 @@ class JNStoreApp {
     updateOrderStatus(id, status) { this.adminOrders.updateOrderStatus(id, status); }
     deleteOrderToTrash(id) { this.adminOrders.deleteOrderToTrash(id); }
     viewOrderReceipt(id) { this.adminOrders.viewOrderReceipt(id); }
+    closeReceiptModal() { 
+        if (this.adminOrders) this.adminOrders.closeReceiptModal();
+        if (this.cart) this.cart.closeReceiptModal();
+    }
     sendOrderWhatsAppDirect(id) { this.adminOrders.sendOrderWhatsAppDirect(id); }
     sendCustomerWhatsAppConfirmation() { this.adminOrders.sendCustomerWhatsAppConfirmation(); }
     copyWhatsAppConfirmationText() { this.adminOrders.copyWhatsAppConfirmationText(); }

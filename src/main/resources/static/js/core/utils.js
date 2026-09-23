@@ -12,11 +12,13 @@ class Utils {
         try {
             const date = new Date(dateString);
             return date.toLocaleDateString('es-CO', {
+                timeZone: 'America/Bogota',
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                hour12: true
             });
         } catch (e) {
             return dateString;

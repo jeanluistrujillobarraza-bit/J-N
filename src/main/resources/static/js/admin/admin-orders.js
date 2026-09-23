@@ -153,8 +153,8 @@ class AdminOrdersModule {
         let orderTime = '';
         try {
             const d = new Date(order.createdAt || Date.now());
-            orderDate = d.toLocaleDateString('es-CO');
-            orderTime = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            orderDate = d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'numeric', day: 'numeric' });
+            orderTime = d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true });
         } catch (e) {
             orderDate = 'Hoy';
             orderTime = '';
@@ -235,7 +235,53 @@ Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para br
         const order = this.orders.find(o => o.id === id);
         if (!order) return;
         this.selectedOrderForReceipt = order;
-        this.store.cart.openReceiptModal(order);
+        this.openReceiptModal(order);
+    }
+
+    openReceiptModal(order) {
+        const modal = document.getElementById('receipt-modal');
+        if (!modal) return;
+
+        this.selectedOrderForReceipt = order;
+
+        const summaryEl = document.getElementById('receipt-order-summary');
+        if (summaryEl) {
+            const itemsList = (order.items || []).map(i => {
+                const prodName = i.name || i.productName || 'Producto';
+                const variantInfo = (i.size || i.color) ? ` (${[i.size, i.color].filter(Boolean).join(' - ')})` : '';
+                return `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px;">
+                        <span>${i.quantity}x ${Utils.escapeHtml(prodName)}${variantInfo}</span>
+                        <strong>${Utils.formatPrice(i.price * i.quantity)}</strong>
+                    </div>
+                `;
+            }).join('');
+
+            summaryEl.innerHTML = `
+                <div style="border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:12px;">
+                    <p style="font-size:13px; margin-bottom:4px;"><strong>Cliente:</strong> ${Utils.escapeHtml(order.customerName)}</p>
+                    <p style="font-size:13px; margin-bottom:4px;"><strong>Teléfono:</strong> ${Utils.escapeHtml(order.customerPhone)}</p>
+                    <p style="font-size:13px; margin-bottom:4px;"><strong>Dirección:</strong> ${Utils.escapeHtml(order.customerAddress || 'N/A')} (${Utils.escapeHtml(order.customerCity || 'Principal')})</p>
+                    <p style="font-size:13px; margin-bottom:4px;"><strong>Método de Pago:</strong> ${Utils.escapeHtml(order.paymentMethod || 'Transferencia / Nequi')}</p>
+                    <p style="font-size:13px; margin-bottom:4px;"><strong>Fecha / Hora:</strong> ${Utils.formatDate(order.createdAt)}</p>
+                </div>
+                <div>
+                    <h5 style="font-size:13px; margin-bottom:8px; text-transform:uppercase; color:var(--text-muted);">Productos</h5>
+                    ${itemsList}
+                    <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:10px; border-top:2px dashed var(--border-color); font-size:16px; font-weight:700;">
+                        <span>Total a Pagar:</span>
+                        <span style="color:var(--accent-pink);">${Utils.formatPrice(order.total)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    closeReceiptModal() {
+        const modal = document.getElementById('receipt-modal');
+        if (modal) modal.classList.add('hidden');
     }
 }
 
