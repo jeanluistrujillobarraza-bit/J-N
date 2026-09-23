@@ -19,15 +19,6 @@ class CatalogModule {
         this.selectedSize = '';
         this.selectedColor = '';
         this.selectedDetailImageIndex = 0;
-
-        // Server-Side Real Pagination Component for Catalog
-        this.pagination = new Pagination({
-            containerId: 'catalog-pagination-container',
-            pageSize: 16,
-            pageSizeOptions: [12, 16, 24, 48],
-            isServerSide: true,
-            onServerPageChange: (page, size) => this.fetchProducts(page, size)
-        });
     }
 
     async init() {
@@ -35,7 +26,7 @@ class CatalogModule {
             this.fetchMainCategories(),
             this.fetchCategories()
         ]);
-        await this.fetchProducts(0, this.pagination.pageSize);
+        await this.fetchProducts();
     }
 
     async fetchMainCategories() {
@@ -57,41 +48,23 @@ class CatalogModule {
         }
     }
 
-    async fetchProducts(page = 0, size = this.pagination.pageSize) {
+    async fetchProducts() {
         this.renderProductsSkeleton();
 
-        const params = new URLSearchParams();
-        params.append('page', page);
-        params.append('size', size);
-
-        if (this.activeMainCategory && this.activeMainCategory.toLowerCase() !== 'todos') {
-            params.append('mainCategory', this.activeMainCategory);
-        }
-        if (this.activeCategory && this.activeCategory.toLowerCase() !== 'todos') {
-            params.append('category', this.activeCategory);
-        }
-        if (this.searchQuery && this.searchQuery.trim()) {
-            params.append('query', this.searchQuery.trim());
-        }
-
         try {
-            const data = await api.get(`/api/products?${params.toString()}`);
-            if (data && data.content) {
-                this.allProducts = data.content;
-                this.pagination.setServerPage(data);
-                this.renderProductCards(data.content);
-            } else if (Array.isArray(data)) {
+            const data = await api.get('/api/products');
+            if (Array.isArray(data)) {
                 this.allProducts = data;
-                this.pagination.setItems(data);
-                this.renderProductCards(data.slice(0, size));
+            } else if (data && Array.isArray(data.content)) {
+                this.allProducts = data.content;
             } else {
                 this.allProducts = [];
-                this.renderProductCards([]);
             }
+            this.applyFiltersAndRender();
         } catch (e) {
             console.error('[Catalog] Error al obtener productos:', e);
             this.allProducts = [];
-            this.renderProductCards([]);
+            this.applyFiltersAndRender();
         }
     }
 
@@ -231,18 +204,18 @@ class CatalogModule {
         this.activeCategory = 'todos';
         this.renderDepartmentNav();
         this.renderSubcategoryPills();
-        this.fetchProducts(0, this.pagination.pageSize);
+        this.applyFiltersAndRender();
     }
 
     filterSubCategory(sub) {
         this.activeCategory = sub || 'todos';
         this.renderSubcategoryPills();
-        this.fetchProducts(0, this.pagination.pageSize);
+        this.applyFiltersAndRender();
     }
 
     setSearchQuery(q) {
         this.searchQuery = q || '';
-        this.fetchProducts(0, this.pagination.pageSize);
+        this.applyFiltersAndRender();
     }
 
     togglePillsExpanded(e) {
@@ -257,8 +230,8 @@ class CatalogModule {
     applyFiltersAndRender() {
         if (!this.allProducts || this.allProducts.length === 0) {
             this.filteredProducts = [];
-            this.pagination.setItems([]);
             this.renderProductCards([]);
+            this.updateCatalogCounter(0);
             return;
         }
 
@@ -303,9 +276,32 @@ class CatalogModule {
             return true;
         });
 
-        const pageItems = this.pagination.setItems(this.filteredProducts);
-        this.pagination.render();
-        this.renderProductCards(pageItems);
+        this.updateCatalogCounter(this.filteredProducts.length, this.allProducts.length);
+        this.renderProductCards(this.filteredProducts);
+    }
+
+    updateCatalogCounter(filteredCount, totalCount = filteredCount) {
+        const container = document.getElementById('catalog-pagination-container');
+        if (!container) return;
+
+        if (totalCount === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let label = `Mostrando <strong>${filteredCount}</strong> productos`;
+        if (filteredCount !== totalCount) {
+            label = `Mostrando <strong>${filteredCount}</strong> de <strong>${totalCount}</strong> productos encontrados`;
+        }
+
+        container.innerHTML = `
+            <div class="catalog-summary-bar">
+                <div class="catalog-count-badge">
+                    <i class="fas fa-boxes" style="color: var(--accent-pink);"></i>
+                    <span>${label}</span>
+                </div>
+            </div>
+        `;
     }
 
     renderProductCards(items) {

@@ -8,23 +8,14 @@ class AdminProductsModule {
         this.searchQuery = '';
         this.selectedTypeFilter = 'todos';
         this.variationsList = [];
-        this.products = [];
+        this.allProducts = [];
         this.categories = [];
-
-        // Real Server-Side Pagination Component for Admin Products Table
-        this.pagination = new Pagination({
-            containerId: 'admin-products-pagination-container',
-            pageSize: 15,
-            pageSizeOptions: [10, 15, 25, 50, 100],
-            isServerSide: true,
-            onServerPageChange: (page, size) => this.fetchProducts(page, size)
-        });
     }
 
     async render() {
         await this.fetchCategories();
         this.populateCategorySelects();
-        await this.fetchProducts(0, this.pagination.pageSize);
+        await this.fetchProducts();
     }
 
     async fetchCategories() {
@@ -36,46 +27,77 @@ class AdminProductsModule {
         }
     }
 
-    async fetchProducts(page = 0, size = this.pagination.pageSize) {
-        const params = new URLSearchParams();
-        params.append('page', page);
-        params.append('size', size);
-        if (this.selectedTypeFilter && this.selectedTypeFilter !== 'todos') {
-            params.append('type', this.selectedTypeFilter);
-        }
-        if (this.searchQuery && this.searchQuery.trim()) {
-            params.append('query', this.searchQuery.trim());
-        }
-
+    async fetchProducts() {
         try {
-            const data = await api.get(`/api/products?${params.toString()}`);
-            if (data && data.content) {
-                this.products = data.content;
-                this.pagination.setServerPage(data);
-                this.renderTableRows(data.content);
-            } else if (Array.isArray(data)) {
-                this.products = data;
-                this.pagination.setItems(data);
-                this.renderTableRows(data.slice(0, size));
+            const data = await api.get('/api/products');
+            if (Array.isArray(data)) {
+                this.allProducts = data;
+            } else if (data && Array.isArray(data.content)) {
+                this.allProducts = data.content;
             } else {
-                this.products = [];
-                this.renderTableRows([]);
+                this.allProducts = [];
             }
+            this.applyFiltersAndRender();
         } catch (e) {
             console.error('[AdminProducts] Error al cargar productos:', e);
-            this.products = [];
-            this.renderTableRows([]);
+            this.allProducts = [];
+            this.applyFiltersAndRender();
         }
     }
 
     setSearch(q) {
         this.searchQuery = q || '';
-        this.fetchProducts(0, this.pagination.pageSize);
+        this.applyFiltersAndRender();
     }
 
     setTypeFilter(type) {
         this.selectedTypeFilter = type || 'todos';
-        this.fetchProducts(0, this.pagination.pageSize);
+        this.applyFiltersAndRender();
+    }
+
+    applyFiltersAndRender() {
+        const q = (this.searchQuery || '').trim().toLowerCase();
+        const typeFilter = (this.selectedTypeFilter || 'todos').toLowerCase();
+
+        const filtered = this.allProducts.filter(p => {
+            if (p.deleted) return false;
+
+            if (typeFilter !== 'todos') {
+                if ((p.type || '').toLowerCase() !== typeFilter) return false;
+            }
+
+            if (q) {
+                const nameMatch = (p.name || '').toLowerCase().includes(q);
+                const descMatch = (p.description || '').toLowerCase().includes(q);
+                const catMatch = (p.category || '').toLowerCase().includes(q);
+                const typeMatch = (p.type || '').toLowerCase().includes(q);
+                if (!nameMatch && !descMatch && !catMatch && !typeMatch) return false;
+            }
+
+            return true;
+        });
+
+        this.renderTableRows(filtered);
+        this.updateTableSummary(filtered.length, this.allProducts.length);
+    }
+
+    updateTableSummary(filteredCount, totalCount = filteredCount) {
+        const container = document.getElementById('admin-products-pagination-container');
+        if (!container) return;
+
+        let label = `Mostrando <strong>${filteredCount}</strong> productos en inventario`;
+        if (filteredCount !== totalCount) {
+            label = `Mostrando <strong>${filteredCount}</strong> de <strong>${totalCount}</strong> productos encontrados`;
+        }
+
+        container.innerHTML = `
+            <div class="admin-table-summary-bar">
+                <div class="admin-count-badge">
+                    <i class="fas fa-boxes" style="color: var(--gold);"></i>
+                    <span>${label}</span>
+                </div>
+            </div>
+        `;
     }
 
     renderTableRows(items) {
@@ -162,7 +184,7 @@ class AdminProductsModule {
         this.populateCategorySelects();
 
         if (id) {
-            let prod = this.products.find(p => p.id === id);
+            let prod = this.allProducts.find(p => p.id === id);
             try {
                 const fullProd = await api.get(`/api/products/${id}`);
                 if (fullProd && fullProd.id) prod = fullProd;

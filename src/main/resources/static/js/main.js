@@ -23,13 +23,13 @@ class JNStoreApp {
     }
 
     setupPaginationBindings() {
-        // Catalog
+        // Catalog (if pagination enabled)
         if (this.catalog && this.catalog.pagination) {
             this['pagination_catalog-pagination-container'] = (p) => this.catalog.pagination.goToPage(p);
             this['paginationSize_catalog-pagination-container'] = (s) => this.catalog.pagination.changePageSize(s);
         }
 
-        // Admin Products
+        // Admin Products (if pagination enabled)
         if (this.adminProducts && this.adminProducts.pagination) {
             this['pagination_admin-products-pagination-container'] = (p) => this.adminProducts.pagination.goToPage(p);
             this['paginationSize_admin-products-pagination-container'] = (s) => this.adminProducts.pagination.changePageSize(s);

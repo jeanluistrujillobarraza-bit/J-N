@@ -638,3 +638,50 @@
         padding: 6px 2px;
     }
 }
+
+/* Catalog Summary Bar & Count Badges */
+.catalog-summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0 35px 0;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.catalog-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 10px 22px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.admin-table-summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    margin-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.admin-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-light);
+    padding: 8px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
