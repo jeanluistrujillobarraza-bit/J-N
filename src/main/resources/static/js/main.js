@@ -49,9 +49,13 @@ class JNStoreApp {
     }
 
     async init() {
-        if (this.auth) await this.auth.checkSession();
-        if (this.catalog) await this.catalog.init();
-        if (this.cart) this.cart.renderCart();
+        // Run session check, catalog initialization and cart in parallel for maximum speed and instant loading
+        const tasks = [];
+        if (this.auth) tasks.push(this.auth.checkSession());
+        if (this.catalog) tasks.push(this.catalog.init());
+        if (this.cart) tasks.push(Promise.resolve(this.cart.renderCart()));
+
+        await Promise.allSettled(tasks);
 
         // Search Input live debouncing
         const searchInput = document.getElementById('search-input');
