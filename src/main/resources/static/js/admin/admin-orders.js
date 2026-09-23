@@ -175,23 +175,23 @@ class AdminOrdersModule {
         }).join('\n');
 
         const message = 
-`✨ *Confirmación de Compra - J&N* ✨
+`\u2728 *Confirmaci\u00F3n de Compra - J&N* \u2728
 
 *Cliente:* ${order.customerName || 'Cliente'}
 *Pedido:* #${orderNum}
 *Fecha:* ${orderDate}
 *Hora:* ${orderTime}
 
-🛍️ *PRODUCTOS:*
+\uD83D\uDECD\uFE0F *PRODUCTOS:*
 ${itemsLines}
 
-💰 *TOTAL A PAGAR:* *${Utils.formatPrice(order.total || 0)}*
+\uD83D\uDCB0 *TOTAL A PAGAR:* *${Utils.formatPrice(order.total || 0)}*
 
-Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacción.
+Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacci\u00F3n.
 
 Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para brindarte la mejor experiencia de compra.
 
-¡Gracias por elegirnos! 💖`;
+\u00A1Gracias por elegirnos! \uD83D\uDC96`;
 
         return message;
     }
