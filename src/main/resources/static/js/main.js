@@ -267,6 +267,12 @@ class JNStoreApp {
     updateOrderStatus(id, status) { this.adminOrders.updateOrderStatus(id, status); }
     deleteOrderToTrash(id) { this.adminOrders.deleteOrderToTrash(id); }
     viewOrderReceipt(id) { this.adminOrders.viewOrderReceipt(id); }
+    downloadOrderPdfReceipt() {
+        if (this.adminOrders) this.adminOrders.downloadOrderPdfReceipt();
+        else if (this.cart && this.cart.lastCreatedOrder) {
+            window.open(`/api/orders/receipt/${this.cart.lastCreatedOrder.id}`, '_blank');
+        }
+    }
     closeReceiptModal() { 
         if (this.adminOrders) this.adminOrders.closeReceiptModal();
         if (this.cart) this.cart.closeReceiptModal();

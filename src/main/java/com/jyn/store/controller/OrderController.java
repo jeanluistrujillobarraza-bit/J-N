@@ -281,15 +281,21 @@ public class OrderController {
                 "            font-weight: bold;\n" +
                 "            margin-top: 10px;\n" +
                 "            font-size: 13px;\n" +
-                "        }\n" +
+                "        .print-btn-container { text-align: center; margin-bottom: 20px; }\n" +
+                "        .btn-pdf { background: #d4af37; color: white; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }\n" +
+                "        .btn-pdf:hover { background: #b8972e; }\n" +
                 "        @media print {\n" +
                 "            body { background: white; padding: 0; }\n" +
                 "            .invoice-card { border: none; box-shadow: none; padding: 0; }\n" +
+                "            .print-btn-container { display: none !important; }\n" +
                 "        }\n" +
                 "    </style>\n" +
                 "    <link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap\" rel=\"stylesheet\">\n" +
                 "</head>\n" +
                 "<body>\n" +
+                "    <div class=\"print-btn-container\">\n" +
+                "        <button class=\"btn-pdf\" onclick=\"window.print()\">📥 Guardar como PDF / Imprimir Recibo</button>\n" +
+                "    </div>\n" +
                 "    <div class=\"invoice-card\">\n" +
                 "        <div class=\"header\">\n" +
                 "            <h1 class=\"logo\">J&N</h1>\n" +
@@ -319,7 +325,7 @@ public class OrderController {
                 "                </tr>\n" +
                 "            </thead>\n" +
                 "            <tbody>\n" +
-                rows.toString() +
+                "            " + rows.toString() + "\n" +
                 "            </tbody>\n" +
                 "        </table>\n" +
                 "        \n" +
@@ -334,11 +340,6 @@ public class OrderController {
                 "            <p class=\"shop-name\">CON AGRADECIMIENTO J&N!! ❤️</p>\n" +
                 "        </div>\n" +
                 "    </div>\n" +
-                "    <script>\n" +
-                "        window.onload = function() {\n" +
-                "            window.print();\n" +
-                "        }\n" +
-                "    </script>\n" +
                 "</body>\n" +
                 "</html>";
         return ResponseEntity.ok()

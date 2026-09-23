@@ -248,6 +248,29 @@
         </div>
     </div>
 
+    <!-- Order Receipt Modal -->
+    <div class="modal-overlay hidden" id="receipt-modal" onclick="app.closeReceiptModal()">
+        <div class="modal-content" style="max-width: 520px;" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="app.closeReceiptModal()"><i class="fas fa-times"></i></button>
+            <h3 style="margin-bottom: 15px; font-size: 19px; text-align: center; color: var(--dark-neutral);">
+                <i class="fas fa-file-invoice" style="color: var(--gold);"></i> ¡Gracias por tu Compra!
+            </h3>
+            
+            <div id="receipt-order-summary">
+                <!-- Dynamic Summary -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 18px;">
+                <button class="btn btn-outline" style="flex: 1;" onclick="app.downloadOrderPdfReceipt()">
+                    <i class="fas fa-file-pdf" style="color: #ef4444;"></i> Descargar / Imprimir PDF
+                </button>
+                <button class="btn btn-gold" style="flex: 1;" onclick="app.closeReceiptModal()">
+                    <i class="fas fa-shopping-bag"></i> Seguir Comprando
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Login / Register Modal -->
     <div class="modal-overlay hidden" id="login-modal">
         <div class="modal-content" style="max-width: 440px;">

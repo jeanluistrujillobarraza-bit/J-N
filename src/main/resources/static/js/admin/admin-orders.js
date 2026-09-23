@@ -147,17 +147,16 @@ class AdminOrdersModule {
 
     generateWhatsAppConfirmationMessage(order) {
         if (!order) return '';
-        const orderNum = (order.id || '').substring(0, 8).toUpperCase();
+        const orderNum = order.orderNumber ? `#${order.orderNumber}` : `#${(order.id || '').substring(0, 8).toUpperCase()}`;
         
-        let orderDate = '';
-        let orderTime = '';
+        let formattedDateTime = '';
         try {
             const d = new Date(order.createdAt || Date.now());
-            orderDate = d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'numeric', day: 'numeric' });
-            orderTime = d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true });
+            const datePart = d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: 'numeric', month: 'numeric', year: 'numeric' });
+            const timePart = d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true });
+            formattedDateTime = `${datePart} - ${timePart}`;
         } catch (e) {
-            orderDate = 'Hoy';
-            orderTime = '';
+            formattedDateTime = 'Reciente';
         }
 
         const allProds = (this.store && this.store.catalog && this.store.catalog.allProducts) || [];
@@ -174,24 +173,30 @@ class AdminOrdersModule {
             return ` • *${prodName}${variantText}* x${i.quantity} — ${Utils.formatPrice(i.price * i.quantity)}`;
         }).join('\n');
 
+        const hostUrl = window.location.origin;
+        const receiptUrl = `${hostUrl}/api/orders/receipt/${order.id}`;
+
         const message = 
-`✨ *Confirmación de Compra - J&N* ✨
+`🧾 *RECIBO DE PAGO J&N*
 
-*Cliente:* ${order.customerName || 'Cliente'}
-*Pedido:* #${orderNum}
-*Fecha:* ${orderDate}
-*Hora:* ${orderTime}
+✅ *¡Hola! Hemos verificado tu pago de forma exitosa.*
 
-📦 *PRODUCTOS:*
+📦 *N.° de Pedido:* ${orderNum}
+👤 *Cliente:* ${order.customerName || 'Cliente'}
+📅 *Fecha de Pago:* ${formattedDateTime}
+
+🛍️ *DETALLE DE COMPRA*
 ${itemsLines}
 
-💰 *TOTAL A PAGAR:* *${Utils.formatPrice(order.total || 0)}*
+💰 *TOTAL PAGADO:* *${Utils.formatPrice(order.total || 0)}*
 
-Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacción.
+🚚 *TU PEDIDO YA ESTÁ SIENDO PREPARADO*
 
-Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para brindarte la mejor experiencia de compra.
+📄 *Descarga tu recibo en PDF:*
+${receiptUrl}
 
-¡Gracias por elegirnos! 💖`;
+💖 *Gracias por confiar en J&N.*
+✨ *Gracias por elegirnos como tu tienda favorita.*`;
 
         return message;
     }
@@ -236,6 +241,15 @@ Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para br
         if (!order) return;
         this.selectedOrderForReceipt = order;
         this.openReceiptModal(order);
+    }
+
+    downloadOrderPdfReceipt() {
+        const targetOrder = this.selectedOrderForReceipt || (this.store.cart && this.store.cart.lastCreatedOrder);
+        if (!targetOrder || !targetOrder.id) {
+            Utils.showToast('No se encontró el ID del pedido.', 'warning');
+            return;
+        }
+        window.open(`/api/orders/receipt/${targetOrder.id}`, '_blank');
     }
 
     openReceiptModal(order) {
