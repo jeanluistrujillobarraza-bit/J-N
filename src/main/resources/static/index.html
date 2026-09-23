@@ -253,11 +253,11 @@
         <div class="modal-content" style="max-width: 440px;">
             <button class="modal-close-btn" onclick="app.closeLoginModal()"><i class="fas fa-times"></i></button>
             
-            <div style="display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px;">
-                <button type="button" class="btn active" id="auth-tab-login" onclick="app.setAuthTab('login')" style="flex: 1; border-radius: 0; border-bottom: 2px solid var(--accent-pink);">
+            <div class="auth-modal-tabs">
+                <button type="button" class="auth-modal-tab active" id="auth-tab-login" onclick="app.setAuthTab('login')">
                     Ingresar
                 </button>
-                <button type="button" class="btn" id="auth-tab-register" onclick="app.setAuthTab('register')" style="flex: 1; border-radius: 0;">
+                <button type="button" class="auth-modal-tab" id="auth-tab-register" onclick="app.setAuthTab('register')">
                     Registrarse
                 </button>
             </div>
