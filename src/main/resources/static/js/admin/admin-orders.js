@@ -175,23 +175,23 @@ class AdminOrdersModule {
         }).join('\n');
 
         const message = 
-`\u2728 *Confirmaci\u00F3n de Compra - J&N* \u2728
+`✨ *Confirmación de Compra - J&N* ✨
 
 *Cliente:* ${order.customerName || 'Cliente'}
 *Pedido:* #${orderNum}
 *Fecha:* ${orderDate}
 *Hora:* ${orderTime}
 
-\uD83D\uDECD\uFE0F *PRODUCTOS:*
+📦 *PRODUCTOS:*
 ${itemsLines}
 
-\uD83D\uDCB0 *TOTAL A PAGAR:* *${Utils.formatPrice(order.total || 0)}*
+💰 *TOTAL A PAGAR:* *${Utils.formatPrice(order.total || 0)}*
 
-Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacci\u00F3n.
+Una vez que hayas confirmado y realizado el pago de tu pedido, te enviaremos tu *recibo de pago* como comprobante de la transacción.
 
 Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para brindarte la mejor experiencia de compra.
 
-\u00A1Gracias por elegirnos! \uD83D\uDC96`;
+¡Gracias por elegirnos! 💖`;
 
         return message;
     }
@@ -216,7 +216,7 @@ Agradecemos sinceramente tu confianza y preferencia. En *J&N* trabajamos para br
             phone = '57' + phone;
         }
 
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
     }
 

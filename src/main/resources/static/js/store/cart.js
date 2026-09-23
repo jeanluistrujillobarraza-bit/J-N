@@ -282,16 +282,16 @@ class CartModule {
     sendReceiptWhatsApp(order) {
         if (!order) return;
         const msg = encodeURIComponent(
-            `\u2728 *NUEVO PEDIDO - J&N STORE* \u2728\n` +
-            `\uD83D\uDC64 *Cliente:* ${order.customerName}\n` +
-            `\uD83D\uDCF1 *Tel\u00E9fono:* ${order.customerPhone}\n` +
-            `\uD83D\uDCCD *Direcci\u00F3n:* ${order.customerAddress}\n` +
-            `\uD83D\uDCB3 *Pago:* ${order.paymentMethod}\n\n` +
-            `\uD83D\uDECD\uFE0F *Productos:*\n` +
-            (order.items || []).map(i => `\u2022 ${i.quantity}x ${i.productName || i.name} - ${Utils.formatPrice(i.price * i.quantity)}`).join('\n') +
-            `\n\n\uD83D\uDCB0 *TOTAL:* ${Utils.formatPrice(order.total)}`
+            `✨ *NUEVO PEDIDO - J&N STORE* ✨\n` +
+            `👤 *Cliente:* ${order.customerName}\n` +
+            `📱 *Teléfono:* ${order.customerPhone}\n` +
+            `📍 *Dirección:* ${order.customerAddress}\n` +
+            `💳 *Pago:* ${order.paymentMethod}\n\n` +
+            `📦 *Productos:*\n` +
+            (order.items || []).map(i => `• ${i.quantity}x ${i.productName || i.name} - ${Utils.formatPrice(i.price * i.quantity)}`).join('\n') +
+            `\n\n💰 *TOTAL:* ${Utils.formatPrice(order.total)}`
         );
-        window.open(`https://wa.me/573000000000?text=${msg}`, '_blank');
+        window.open(`https://api.whatsapp.com/send?phone=573000000000&text=${msg}`, '_blank');
     }
 }
 
