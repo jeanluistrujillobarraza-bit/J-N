@@ -7,8 +7,8 @@ class Pagination {
 
     constructor(options = {}) {
         this.containerId = options.containerId || 'pagination-container';
-        this.pageSize = options.pageSize || 16;
-        this.pageSizeOptions = options.pageSizeOptions || [12, 16, 24, 48];
+        this.pageSize = options.pageSize || 15;
+        this.pageSizeOptions = options.pageSizeOptions || [15, 30, 50];
         this.currentPage = 1;
         this.items = [];
         this.totalElements = 0;

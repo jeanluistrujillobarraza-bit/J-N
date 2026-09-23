@@ -19,6 +19,15 @@ class CatalogModule {
         this.selectedSize = '';
         this.selectedColor = '';
         this.selectedDetailImageIndex = 0;
+
+        // Server-Side Real Pagination (15 items per page default)
+        this.pagination = new Pagination({
+            containerId: 'catalog-pagination-container',
+            pageSize: 15,
+            pageSizeOptions: [15, 30, 50],
+            isServerSide: true,
+            onServerPageChange: (page, size) => this.fetchProducts(page, size)
+        });
     }
 
     async init() {
@@ -26,7 +35,7 @@ class CatalogModule {
             this.fetchMainCategories(),
             this.fetchCategories()
         ]);
-        await this.fetchProducts();
+        await this.fetchProducts(0, this.pagination.pageSize);
     }
 
     async fetchMainCategories() {
@@ -48,23 +57,60 @@ class CatalogModule {
         }
     }
 
-    async fetchProducts() {
+    async fetchProducts(page = 0, size = this.pagination.pageSize) {
         this.renderProductsSkeleton();
 
         try {
-            const data = await api.get('/api/products');
-            if (Array.isArray(data)) {
-                this.allProducts = data;
-            } else if (data && Array.isArray(data.content)) {
+            const params = new URLSearchParams();
+            params.append('page', page);
+            params.append('size', size);
+
+            if (this.activeCategory && this.activeCategory.toLowerCase() !== 'todos') {
+                params.append('category', this.activeCategory);
+            }
+            if (this.activeMainCategory && this.activeMainCategory.toLowerCase() !== 'todos') {
+                params.append('mainCategory', this.activeMainCategory);
+            }
+            if (this.searchQuery && this.searchQuery.trim()) {
+                params.append('query', this.searchQuery.trim());
+            }
+
+            const data = await api.get(`/api/products?${params.toString()}`);
+
+            if (data && Array.isArray(data.content)) {
                 this.allProducts = data.content;
+                this.pagination.setServerPage(data);
+            } else if (Array.isArray(data)) {
+                this.allProducts = data;
+                this.pagination.setServerPage({
+                    content: data,
+                    page: page,
+                    size: size,
+                    totalElements: data.length,
+                    totalPages: Math.max(1, Math.ceil(data.length / size))
+                });
             } else {
                 this.allProducts = [];
+                this.pagination.setServerPage({
+                    content: [],
+                    page: 0,
+                    size: size,
+                    totalElements: 0,
+                    totalPages: 1
+                });
             }
-            this.applyFiltersAndRender();
+            this.renderProductCards(this.allProducts);
         } catch (e) {
             console.error('[Catalog] Error al obtener productos:', e);
             this.allProducts = [];
-            this.applyFiltersAndRender();
+            this.renderProductCards([]);
+            this.pagination.setServerPage({
+                content: [],
+                page: 0,
+                size: size,
+                totalElements: 0,
+                totalPages: 1
+            });
         }
     }
 
@@ -204,18 +250,18 @@ class CatalogModule {
         this.activeCategory = 'todos';
         this.renderDepartmentNav();
         this.renderSubcategoryPills();
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     filterSubCategory(sub) {
         this.activeCategory = sub || 'todos';
         this.renderSubcategoryPills();
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     setSearchQuery(q) {
         this.searchQuery = q || '';
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     togglePillsExpanded(e) {
@@ -225,83 +271,6 @@ class CatalogModule {
         }
         this.isPillsExpanded = !this.isPillsExpanded;
         this.renderSubcategoryPills();
-    }
-
-    applyFiltersAndRender() {
-        if (!this.allProducts || this.allProducts.length === 0) {
-            this.filteredProducts = [];
-            this.renderProductCards([]);
-            this.updateCatalogCounter(0);
-            return;
-        }
-
-        const hasMain = this.activeMainCategory && this.activeMainCategory.toLowerCase() !== 'todos';
-        const hasSub = this.activeCategory && this.activeCategory.toLowerCase() !== 'todos';
-        const q = (this.searchQuery || '').trim().toLowerCase();
-
-        let matchingSubCatNames = [];
-        if (hasMain) {
-            const mainLower = this.activeMainCategory.toLowerCase();
-            matchingSubCatNames = this.categories
-                .filter(c => (c.parentCategory || 'Maquillaje').toLowerCase() === mainLower || (c.name || '').toLowerCase() === mainLower)
-                .map(c => (c.name || '').toLowerCase());
-            matchingSubCatNames.push(mainLower);
-        }
-
-        this.filteredProducts = this.allProducts.filter(p => {
-            const pCat = (p.category || '').toLowerCase();
-            const pType = (p.type || '').toLowerCase();
-
-            // Subcategory filter
-            if (hasSub) {
-                const subLower = this.activeCategory.toLowerCase();
-                if (pCat !== subLower && pType !== subLower) return false;
-            }
-
-            // Department filter
-            if (hasMain && !hasSub) {
-                const mainLower = this.activeMainCategory.toLowerCase();
-                const matchesMain = pType === mainLower || matchingSubCatNames.includes(pCat) || pCat === mainLower;
-                if (!matchesMain) return false;
-            }
-
-            // Search query
-            if (q) {
-                const nameMatch = (p.name || '').toLowerCase().includes(q);
-                const descMatch = (p.description || '').toLowerCase().includes(q);
-                const catMatch = pCat.includes(q) || pType.includes(q);
-                if (!nameMatch && !descMatch && !catMatch) return false;
-            }
-
-            return true;
-        });
-
-        this.updateCatalogCounter(this.filteredProducts.length, this.allProducts.length);
-        this.renderProductCards(this.filteredProducts);
-    }
-
-    updateCatalogCounter(filteredCount, totalCount = filteredCount) {
-        const container = document.getElementById('catalog-pagination-container');
-        if (!container) return;
-
-        if (totalCount === 0) {
-            container.innerHTML = '';
-            return;
-        }
-
-        let label = `Mostrando <strong>${filteredCount}</strong> productos`;
-        if (filteredCount !== totalCount) {
-            label = `Mostrando <strong>${filteredCount}</strong> de <strong>${totalCount}</strong> productos encontrados`;
-        }
-
-        container.innerHTML = `
-            <div class="catalog-summary-bar">
-                <div class="catalog-count-badge">
-                    <i class="fas fa-boxes" style="color: var(--accent-pink);"></i>
-                    <span>${label}</span>
-                </div>
-            </div>
-        `;
     }
 
     renderProductCards(items) {

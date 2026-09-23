@@ -10,12 +10,21 @@ class AdminProductsModule {
         this.variationsList = [];
         this.allProducts = [];
         this.categories = [];
+
+        // Real Server-Side Pagination for Admin Products (15 items per page default)
+        this.pagination = new Pagination({
+            containerId: 'admin-products-pagination-container',
+            pageSize: 15,
+            pageSizeOptions: [15, 30, 50],
+            isServerSide: true,
+            onServerPageChange: (page, size) => this.fetchProducts(page, size)
+        });
     }
 
     async render() {
         await this.fetchCategories();
         this.populateCategorySelects();
-        await this.fetchProducts();
+        await this.fetchProducts(0, this.pagination.pageSize);
     }
 
     async fetchCategories() {
@@ -27,77 +36,66 @@ class AdminProductsModule {
         }
     }
 
-    async fetchProducts() {
+    async fetchProducts(page = 0, size = this.pagination.pageSize) {
         try {
-            const data = await api.get('/api/products');
-            if (Array.isArray(data)) {
-                this.allProducts = data;
-            } else if (data && Array.isArray(data.content)) {
+            const params = new URLSearchParams();
+            params.append('page', page);
+            params.append('size', size);
+
+            if (this.selectedTypeFilter && this.selectedTypeFilter.toLowerCase() !== 'todos') {
+                params.append('type', this.selectedTypeFilter.toLowerCase());
+            }
+            if (this.searchQuery && this.searchQuery.trim()) {
+                params.append('query', this.searchQuery.trim());
+            }
+
+            const data = await api.get(`/api/products?${params.toString()}`);
+
+            if (data && Array.isArray(data.content)) {
                 this.allProducts = data.content;
+                this.pagination.setServerPage(data);
+            } else if (Array.isArray(data)) {
+                this.allProducts = data;
+                this.pagination.setServerPage({
+                    content: data,
+                    page: page,
+                    size: size,
+                    totalElements: data.length,
+                    totalPages: Math.max(1, Math.ceil(data.length / size))
+                });
             } else {
                 this.allProducts = [];
+                this.pagination.setServerPage({
+                    content: [],
+                    page: 0,
+                    size: size,
+                    totalElements: 0,
+                    totalPages: 1
+                });
             }
-            this.applyFiltersAndRender();
+            this.renderTableRows(this.allProducts);
         } catch (e) {
             console.error('[AdminProducts] Error al cargar productos:', e);
             this.allProducts = [];
-            this.applyFiltersAndRender();
+            this.renderTableRows([]);
+            this.pagination.setServerPage({
+                content: [],
+                page: 0,
+                size: size,
+                totalElements: 0,
+                totalPages: 1
+            });
         }
     }
 
     setSearch(q) {
         this.searchQuery = q || '';
-        this.applyFiltersAndRender();
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     setTypeFilter(type) {
         this.selectedTypeFilter = type || 'todos';
-        this.applyFiltersAndRender();
-    }
-
-    applyFiltersAndRender() {
-        const q = (this.searchQuery || '').trim().toLowerCase();
-        const typeFilter = (this.selectedTypeFilter || 'todos').toLowerCase();
-
-        const filtered = this.allProducts.filter(p => {
-            if (p.deleted) return false;
-
-            if (typeFilter !== 'todos') {
-                if ((p.type || '').toLowerCase() !== typeFilter) return false;
-            }
-
-            if (q) {
-                const nameMatch = (p.name || '').toLowerCase().includes(q);
-                const descMatch = (p.description || '').toLowerCase().includes(q);
-                const catMatch = (p.category || '').toLowerCase().includes(q);
-                const typeMatch = (p.type || '').toLowerCase().includes(q);
-                if (!nameMatch && !descMatch && !catMatch && !typeMatch) return false;
-            }
-
-            return true;
-        });
-
-        this.renderTableRows(filtered);
-        this.updateTableSummary(filtered.length, this.allProducts.length);
-    }
-
-    updateTableSummary(filteredCount, totalCount = filteredCount) {
-        const container = document.getElementById('admin-products-pagination-container');
-        if (!container) return;
-
-        let label = `Mostrando <strong>${filteredCount}</strong> productos en inventario`;
-        if (filteredCount !== totalCount) {
-            label = `Mostrando <strong>${filteredCount}</strong> de <strong>${totalCount}</strong> productos encontrados`;
-        }
-
-        container.innerHTML = `
-            <div class="admin-table-summary-bar">
-                <div class="admin-count-badge">
-                    <i class="fas fa-boxes" style="color: var(--gold);"></i>
-                    <span>${label}</span>
-                </div>
-            </div>
-        `;
+        this.fetchProducts(0, this.pagination.pageSize);
     }
 
     renderTableRows(items) {

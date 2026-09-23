@@ -45,7 +45,7 @@ public class ProductController {
         
         if (page != null || size != null) {
             int pageNum = page != null ? page : 0;
-            int pageSize = size != null ? size : 16;
+            int pageSize = size != null ? size : 15;
             var paged = productService.getProductsPaged(pageNum, pageSize, category, mainCategory, query, type);
             return ResponseEntity.ok()
                     .cacheControl(org.springframework.http.CacheControl.maxAge(30, java.util.concurrent.TimeUnit.SECONDS).cachePublic())

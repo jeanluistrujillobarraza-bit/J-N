@@ -489,7 +489,7 @@ public class ProductService {
 
         long totalElements = filtered.size();
         int safePage = Math.max(0, page);
-        int safeSize = size > 0 ? size : 16;
+        int safeSize = size > 0 ? size : 15;
         
         int fromIndex = safePage * safeSize;
         List<Product> pageContent;
