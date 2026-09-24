@@ -231,7 +231,11 @@ class AdminProductsModule {
 
         const cleanUrl = (url || '').trim();
         if (cleanUrl) {
-            previewImg.src = cleanUrl;
+            // Loading feedback
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = `<span style="color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Cargando vista previa...</span>`;
+            previewBox.style.display = 'none';
+
             previewImg.onload = () => {
                 previewBox.style.display = 'flex';
                 placeholder.style.display = 'none';
@@ -239,8 +243,9 @@ class AdminProductsModule {
             previewImg.onerror = () => {
                 previewBox.style.display = 'none';
                 placeholder.style.display = 'block';
-                placeholder.innerHTML = `<span style="color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Enlace no válido o imagen no accesible</span>`;
+                placeholder.innerHTML = `<span style="color:var(--danger); font-size:12px;"><i class="fas fa-exclamation-circle"></i> No se pudo cargar la imagen. Verifica que el enlace sea válido y directo (ej. PostImg).</span>`;
             };
+            previewImg.src = cleanUrl;
         } else {
             previewBox.style.display = 'none';
             placeholder.style.display = 'block';
@@ -359,7 +364,9 @@ class AdminProductsModule {
             Utils.showToast(id ? 'Producto actualizado con éxito.' : 'Producto creado con éxito.', 'success');
             this.closeProductModal();
             await this.render();
-            this.store.catalog.applyFiltersAndRender();
+            if (this.store && this.store.catalog) {
+                this.store.catalog.applyFiltersAndRender();
+            }
         } catch (err) {
             Utils.showToast('Error al guardar producto: ' + err.message, 'danger');
         }
@@ -372,7 +379,9 @@ class AdminProductsModule {
             await api.delete(`/api/products/${id}`);
             Utils.showToast('Producto movido a la papelera.', 'info');
             await this.render();
-            this.store.catalog.applyFiltersAndRender();
+            if (this.store && this.store.catalog) {
+                this.store.catalog.applyFiltersAndRender();
+            }
         } catch (err) {
             Utils.showToast('Error al eliminar producto: ' + err.message, 'danger');
         }

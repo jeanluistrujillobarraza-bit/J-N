@@ -148,7 +148,7 @@ class AdminOrdersModule {
     generateWhatsAppConfirmationMessage(order) {
         if (!order) return '';
         const orderNum = order.orderNumber ? `#${order.orderNumber}` : `#${(order.id || '').substring(0, 8).toUpperCase()}`;
-        
+
         let formattedDateTime = '';
         try {
             const d = new Date(order.createdAt || Date.now());
@@ -176,8 +176,8 @@ class AdminOrdersModule {
         const hostUrl = window.location.origin;
         const receiptUrl = `${hostUrl}/api/orders/receipt/${order.id}`;
 
-        const message = 
-`🧾 *RECIBO DE PAGO J&N*
+        const message =
+            `🧾 *RECIBO DE PAGO J&N*
 
 ✅ *¡Hola! Hemos verificado tu pago de forma exitosa.*
 

@@ -225,7 +225,9 @@ class CartModule {
             this.closeCheckout();
 
             // Refresh catalog products in background to update stocks
-            this.store.catalog.fetchProducts(true);
+            if (this.store && this.store.catalog) {
+                this.store.catalog.fetchProducts(true);
+            }
 
             // Open Order Confirmation / Receipt Modal
             this.openReceiptModal(createdOrder || orderPayload);
