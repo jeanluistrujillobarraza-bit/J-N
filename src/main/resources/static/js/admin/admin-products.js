@@ -395,6 +395,14 @@ class AdminProductsModule {
             return;
         }
 
+        const saveBtn = document.getElementById('btn-save-product');
+        const originalBtnHtml = saveBtn ? saveBtn.innerHTML : 'Guardar Producto';
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Guardando...`;
+        }
+
         const images = imageUrl ? [imageUrl] : [];
 
         const payload = {
@@ -420,6 +428,11 @@ class AdminProductsModule {
             }
         } catch (err) {
             Utils.showToast('Error al guardar producto: ' + err.message, 'danger');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalBtnHtml;
+            }
         }
     }
 
