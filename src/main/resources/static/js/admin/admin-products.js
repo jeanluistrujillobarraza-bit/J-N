@@ -10,6 +10,7 @@ class AdminProductsModule {
         this.variationsList = [];
         this.allProducts = [];
         this.categories = [];
+        this.mainCategories = [];
 
         // Real Server-Side Pagination for Admin Products (15 items per page default)
         this.pagination = new Pagination({
@@ -23,16 +24,22 @@ class AdminProductsModule {
 
     async render() {
         await this.fetchCategories();
+        this.populateTypeFilterSelect();
         this.populateCategorySelects();
         await this.fetchProducts(0, this.pagination.pageSize);
     }
 
     async fetchCategories() {
         try {
-            const data = await api.get('/api/categories');
-            this.categories = Array.isArray(data) ? data : [];
+            const [subs, mains] = await Promise.all([
+                api.get('/api/categories'),
+                api.get('/api/main-categories')
+            ]);
+            this.categories = Array.isArray(subs) ? subs : [];
+            this.mainCategories = Array.isArray(mains) ? mains : [];
         } catch (e) {
             this.categories = [];
+            this.mainCategories = [];
         }
     }
 
@@ -153,6 +160,41 @@ class AdminProductsModule {
         }).join('');
     }
 
+    populateTypeFilterSelect() {
+        const filterSelect = document.getElementById('admin-type-filter');
+        if (!filterSelect) return;
+
+        const mainCats = this.mainCategories || [];
+        const currentValue = this.selectedTypeFilter || 'todos';
+
+        let html = `<option value="todos">Todos los Tipos</option>`;
+        mainCats.forEach(m => {
+            const val = (m.name || '').toLowerCase();
+            html += `<option value="${Utils.escapeHtml(val)}" ${currentValue.toLowerCase() === val ? 'selected' : ''}>${Utils.escapeHtml(m.name)}</option>`;
+        });
+
+        filterSelect.innerHTML = html;
+    }
+
+    populateTypeModalSelect(selectedType = '') {
+        const typeSelect = document.getElementById('prod-type');
+        if (!typeSelect) return;
+
+        const mainCats = this.mainCategories || [];
+        if (mainCats.length === 0) {
+            typeSelect.innerHTML = `<option value="general">General</option>`;
+            return;
+        }
+
+        const currentVal = (selectedType || typeSelect.value || mainCats[0].name || '').toLowerCase();
+
+        typeSelect.innerHTML = mainCats.map(m => {
+            const val = (m.name || '').toLowerCase();
+            const isSel = currentVal === val ? 'selected' : '';
+            return `<option value="${Utils.escapeHtml(val)}" ${isSel}>${Utils.escapeHtml(m.name)}</option>`;
+        }).join('');
+    }
+
     populateCategorySelects() {
         const catSelect = document.getElementById('prod-category');
         if (!catSelect) return;
@@ -181,6 +223,10 @@ class AdminProductsModule {
         this.variationsList = [];
         this.populateCategorySelects();
 
+        const defaultType = (this.mainCategories && this.mainCategories.length > 0)
+            ? this.mainCategories[0].name.toLowerCase()
+            : 'maquillaje';
+
         if (id) {
             let prod = this.allProducts.find(p => p.id === id);
             try {
@@ -189,12 +235,15 @@ class AdminProductsModule {
             } catch (e) {}
 
             if (prod) {
+                const targetType = (prod.type || defaultType).toLowerCase();
+                this.populateTypeModalSelect(targetType);
+
                 if (titleEl) titleEl.innerText = 'Editar Producto';
                 if (idInput) idInput.value = prod.id;
                 if (nameInput) nameInput.value = prod.name;
                 if (descInput) descInput.value = prod.description || '';
                 if (priceInput) priceInput.value = prod.price;
-                if (typeSelect) typeSelect.value = prod.type || 'maquillaje';
+                if (typeSelect) typeSelect.value = targetType;
                 if (catSelect) catSelect.value = prod.category || '';
                 if (stockInput) stockInput.value = prod.generalStock || 0;
                 
@@ -205,12 +254,14 @@ class AdminProductsModule {
                 this.variationsList = prod.variations ? JSON.parse(JSON.stringify(prod.variations)) : [];
             }
         } else {
+            this.populateTypeModalSelect(defaultType);
+
             if (titleEl) titleEl.innerText = 'Nuevo Producto';
             if (idInput) idInput.value = '';
             if (nameInput) nameInput.value = '';
             if (descInput) descInput.value = '';
             if (priceInput) priceInput.value = '';
-            if (typeSelect) typeSelect.value = 'maquillaje';
+            if (typeSelect) typeSelect.value = defaultType;
             if (catSelect) catSelect.value = '';
             if (stockInput) stockInput.value = 10;
             if (imageInput) imageInput.value = '';

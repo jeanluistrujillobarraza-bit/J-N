@@ -85,10 +85,8 @@
 
                     <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
                         <input type="text" class="form-control" id="admin-prod-search" placeholder="Buscar por nombre o categoría..." style="max-width: 320px;">
-                        <select class="form-control" style="max-width: 180px;" onchange="app.filterAdminProductsByType(this.value)">
+                        <select class="form-control" id="admin-type-filter" style="max-width: 180px;" onchange="app.filterAdminProductsByType(this.value)">
                             <option value="todos">Todos los Tipos</option>
-                            <option value="maquillaje">Maquillaje</option>
-                            <option value="ropa">Ropa</option>
                         </select>
                     </div>
 
@@ -144,8 +142,7 @@
                     <div class="form-group">
                         <label>Tipo de Producto *</label>
                         <select class="form-control" id="prod-type" onchange="app.toggleTypeFields()">
-                            <option value="maquillaje">Maquillaje</option>
-                            <option value="ropa">Ropa</option>
+                            <!-- Dynamic types/departments -->
                         </select>
                     </div>
                 </div>

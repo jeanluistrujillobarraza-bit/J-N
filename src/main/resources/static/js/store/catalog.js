@@ -40,10 +40,11 @@ class CatalogModule {
 
     async fetchMainCategories() {
         try {
-            this.mainCategories = await api.get('/api/main-categories') || [];
+            const data = await api.get('/api/main-categories');
+            this.mainCategories = Array.isArray(data) ? data : [];
             this.renderDepartmentNav();
         } catch (e) {
-            this.mainCategories = [{ name: 'Maquillaje' }, { name: 'Ropa' }];
+            this.mainCategories = [];
             this.renderDepartmentNav();
         }
     }
